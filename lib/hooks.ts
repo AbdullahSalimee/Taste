@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useAuth } from "./auth-context";
 import {
   getLogs,
   getWatchlist,
@@ -167,4 +168,10 @@ export function useIsOnWatchlist(tmdbId: number | null) {
   const watchlist = useWatchlist();
   if (!tmdbId) return false;
   return watchlist.some((w) => w.tmdb_id === tmdbId);
+}
+
+// ─── Auth Hook ────────────────────────────────────────────────────────────────
+export function useUser() {
+  const { user, loading } = useAuth();
+  return { user, loading, isSignedIn: !!user };
 }
