@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Compass, Zap, Users, Calendar, Globe, TrendingUp } from "lucide-react";
 import { useTrending } from "@/lib/hooks";
 import { addToWatchlist } from "@/lib/store";
@@ -55,6 +56,7 @@ function PosterGrid({
   items: any[];
   onAdd: (item: any) => void;
 }) {
+  const router = useRouter();
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
       {items.map((item: any) => (
@@ -71,7 +73,11 @@ function PosterGrid({
             overflow: "hidden",
             background: "#1A1A1A",
           }}
-          onClick={() => onAdd(item)}
+          onClick={() =>
+            router.push(
+              `/title/${item.type === "series" ? "tv" : "movie"}/${item.id}`,
+            )
+          }
         >
           {item.poster_url ? (
             <img
@@ -148,6 +154,8 @@ function PosterGrid({
 }
 
 function ListCard({ item, onAdd }: { item: any; onAdd: () => void }) {
+  const router = useRouter();
+  const rating5 = Math.round((item.tmdb_rating / 2) * 2) / 2;
   return (
     <div
       style={{
@@ -160,6 +168,11 @@ function ListCard({ item, onAdd }: { item: any; onAdd: () => void }) {
         borderRadius: "8px",
         cursor: "pointer",
       }}
+      onClick={() =>
+        router.push(
+          `/title/${item.type === "series" ? "tv" : "movie"}/${item.id}`,
+        )
+      }
       onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#3A3A3A")}
       onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#2A2A2A")}
     >
@@ -212,7 +225,7 @@ function ListCard({ item, onAdd }: { item: any; onAdd: () => void }) {
               marginTop: "2px",
             }}
           >
-            ★ {item.tmdb_rating.toFixed(1)}
+            ★ {rating5}/5
           </p>
         )}
         {item.overview && (
@@ -264,6 +277,7 @@ function ListCard({ item, onAdd }: { item: any; onAdd: () => void }) {
 }
 
 export default function DiscoverPage() {
+  const router = useRouter();
   const [active, setActive] = useState("trending");
   const [decade, setDecade] = useState("2020s");
   const [decadeItems, setDecadeItems] = useState<any[]>([]);

@@ -3,9 +3,10 @@ import { getTVShow, getTVSeason } from "@/lib/tmdb";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
-  const tmdbId = parseInt(params.id);
+  const { id } = await params;
+  const tmdbId = parseInt(id);
   if (isNaN(tmdbId))
     return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
 
