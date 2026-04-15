@@ -1,163 +1,393 @@
 "use client";
 import { useState } from "react";
 import { Compass, Zap, Users, Calendar, Globe, TrendingUp } from "lucide-react";
-import { MOCK_FILMS, MOCK_TASTE_TWINS } from "@/lib/mock-data";
+import { useTrending } from "@/lib/hooks";
+import { addToWatchlist } from "@/lib/store";
 
 const SERIF = "Playfair Display, Georgia, serif";
-const SANS  = "Inter, system-ui, sans-serif";
-const MONO  = "JetBrains Mono, Courier New, monospace";
+const SANS = "Inter, system-ui, sans-serif";
+const MONO = "JetBrains Mono, Courier New, monospace";
 
-const DECADES = ["1950s", "1960s", "1970s", "1980s", "1990s", "2000s", "2010s", "2020s"];
+const DECADES = [
+  "1950s",
+  "1960s",
+  "1970s",
+  "1980s",
+  "1990s",
+  "2000s",
+  "2010s",
+  "2020s",
+];
 const DECADE_COLORS: Record<string, string> = {
-  "1950s": "#3A5A8A", "1960s": "#5A6A3A", "1970s": "#8A6A2A", "1980s": "#6A3A5A",
-  "1990s": "#3A7A6A", "2000s": "#5A4A8A", "2010s": "#8A4A3A", "2020s": "#4A6A8A",
+  "1950s": "#3A5A8A",
+  "1960s": "#5A6A3A",
+  "1970s": "#8A6A2A",
+  "1980s": "#6A3A5A",
+  "1990s": "#3A7A6A",
+  "2000s": "#5A4A8A",
+  "2010s": "#8A4A3A",
+  "2020s": "#4A6A8A",
+};
+
+const DECADE_YEAR_RANGE: Record<string, [number, number]> = {
+  "1950s": [1950, 1959],
+  "1960s": [1960, 1969],
+  "1970s": [1970, 1979],
+  "1980s": [1980, 1989],
+  "1990s": [1990, 1999],
+  "2000s": [2000, 2009],
+  "2010s": [2010, 2019],
+  "2020s": [2020, 2030],
 };
 
 const SECTIONS = [
-  { id: "twins",    icon: Users,       label: "From Taste Twins",   color: "#5C4A8A" },
-  { id: "directors",icon: Zap,         label: "Director Deep Dive", color: "#C8A96E" },
-  { id: "decade",   icon: Globe,       label: "Decade Explorer",    color: "#2A5C8A" },
-  { id: "new",      icon: TrendingUp,  label: "New on Streaming",   color: "#4A9E6B" },
-  { id: "calendar", icon: Calendar,    label: "Upcoming Releases",  color: "#C87C2A" },
+  { id: "trending", icon: TrendingUp, label: "Trending Now", color: "#C8A96E" },
+  { id: "toprated", icon: Zap, label: "Top Rated", color: "#5C4A8A" },
+  { id: "decade", icon: Globe, label: "Decade Explorer", color: "#2A5C8A" },
+  { id: "tv", icon: Users, label: "Series", color: "#4A9E6B" },
+  { id: "calendar", icon: Calendar, label: "Coming Soon", color: "#C87C2A" },
 ];
 
-const STREAMING = [
-  { title: "The Substance", year: 2024, poster: "https://image.tmdb.org/t/p/w300/lqoMzCcZYEFK729d6qzt349fB4o.jpg", service: "MUBI", match: "Based on your taste profile" },
-  { title: "All We Imagine as Light", year: 2024, poster: "https://image.tmdb.org/t/p/w300/y9P7PaHDFJqsd8FoB6ky3JN3MHY.jpg", service: "MUBI", match: "Loved by your taste twins" },
-  { title: "I Saw the TV Glow", year: 2024, poster: "https://image.tmdb.org/t/p/w300/mYWfeCs9FNzFFbXgMGMhvADEWBn.jpg", service: "Prime Video", match: "86% match with your tastes" },
-  { title: "Dune: Part Two", year: 2024, poster: "https://image.tmdb.org/t/p/w300/1pdfLvkbY9ohJlCjQH2CZjjYVvJ.jpg", service: "Max", match: "Continuing your Villeneuve run" },
-];
-
-const DIRECTORS = ["Andrei Tarkovsky", "Ingmar Bergman", "Wong Kar-wai", "Agnès Varda"];
-
-function PosterCard({ film }: { film: typeof MOCK_FILMS[0] }) {
+function PosterGrid({
+  items,
+  onAdd,
+}: {
+  items: any[];
+  onAdd: (item: any) => void;
+}) {
   return (
-    <div className="film-card" style={{ position: "relative", width: "80px", height: "120px", flexShrink: 0, cursor: "pointer", borderRadius: "4px", overflow: "hidden", background: "#1A1A1A" }}>
-      <img src={film.poster_url} alt={film.title}
-        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        onError={e => (e.currentTarget.style.display = "none")} />
-      <div className="card-overlay" style={{
-        position: "absolute", inset: 0,
-        background: "linear-gradient(to top, rgba(13,13,13,0.9) 0%, transparent 50%)",
-      }} />
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+      {items.map((item: any) => (
+        <div
+          key={`${item.type}-${item.id}`}
+          className="film-card"
+          style={{
+            position: "relative",
+            width: "100px",
+            height: "150px",
+            flexShrink: 0,
+            cursor: "pointer",
+            borderRadius: "4px",
+            overflow: "hidden",
+            background: "#1A1A1A",
+          }}
+          onClick={() => onAdd(item)}
+        >
+          {item.poster_url ? (
+            <img
+              src={item.poster_url}
+              alt={item.title}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          ) : (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                background: "#1A1A1A",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "8px",
+              }}
+            >
+              <span
+                style={{
+                  color: "#504E4A",
+                  fontSize: "10px",
+                  textAlign: "center",
+                  fontFamily: SANS,
+                }}
+              >
+                {item.title}
+              </span>
+            </div>
+          )}
+          <div
+            className="card-overlay"
+            style={{
+              position: "absolute",
+              inset: 0,
+              background:
+                "linear-gradient(to top, rgba(13,13,13,0.9) 0%, transparent 60%)",
+            }}
+          />
+          <div
+            className="card-overlay"
+            style={{
+              position: "absolute",
+              bottom: "6px",
+              left: "6px",
+              right: "6px",
+            }}
+          >
+            <p
+              style={{
+                fontFamily: SANS,
+                fontSize: "9px",
+                color: "#F0EDE8",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {item.title}
+            </p>
+            {item.tmdb_rating > 0 && (
+              <p
+                style={{ fontFamily: MONO, fontSize: "9px", color: "#C8A96E" }}
+              >
+                ★ {item.tmdb_rating.toFixed(1)}
+              </p>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
-function TwinDiscovery({ twin }: { twin: typeof MOCK_TASTE_TWINS[0] }) {
-  const colors = ["#5C4A8A", "#8A2A2A", "#2A5C8A"];
-  const bg = colors[twin.display_name.charCodeAt(0) % colors.length];
+function ListCard({ item, onAdd }: { item: any; onAdd: () => void }) {
   return (
-    <div style={{
-      background: "#141414", border: "1px solid #2A2A2A", borderRadius: "12px", padding: "20px",
-    }}
-    onMouseEnter={e => (e.currentTarget.style.borderColor = "#3A3A3A")}
-    onMouseLeave={e => (e.currentTarget.style.borderColor = "#2A2A2A")}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
-        <div style={{
-          width: "40px", height: "40px", borderRadius: "50%",
-          background: `linear-gradient(135deg, ${bg}, #8A2A5C)`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          color: "white", fontSize: "13px", fontFamily: SANS, fontWeight: 500, flexShrink: 0,
-        }}>{twin.display_name[0]}</div>
-        <div style={{ flex: 1 }}>
-          <p style={{ fontFamily: SANS, fontSize: "13px", color: "#F0EDE8", fontWeight: 500 }}>{twin.display_name}</p>
-          <p style={{ fontFamily: SANS, fontSize: "11px", color: "#504E4A", fontStyle: "italic" }}>{twin.archetype}</p>
-        </div>
-        <div style={{ textAlign: "right" }}>
-          <p style={{ fontFamily: MONO, color: "#C8A96E", fontSize: "14px" }}>{twin.match_score}%</p>
-          <p style={{ fontFamily: SANS, color: "#504E4A", fontSize: "10px" }}>match</p>
-        </div>
-      </div>
-      <p style={{ fontFamily: SANS, fontSize: "11px", color: "#8A8780", marginBottom: "12px" }}>
-        {twin.discovery_count} films in your style you haven&apos;t seen:
-      </p>
-      <div style={{ display: "flex", gap: "8px" }}>
-        {MOCK_FILMS.slice(0, 3).map(f => (
-          <img key={f.id} src={f.poster_url} alt={f.title}
-            style={{ width: "48px", height: "72px", objectFit: "cover", borderRadius: "2px", background: "#1A1A1A" }}
-            onError={e => (e.currentTarget.style.display = "none")} />
-        ))}
-        <div style={{
-          width: "48px", height: "72px", borderRadius: "2px", background: "#1A1A1A",
-          border: "1px solid #2A2A2A", display: "flex", alignItems: "center", justifyContent: "center",
-          cursor: "pointer", fontSize: "10px", fontFamily: MONO, color: "#504E4A",
-        }}>+{twin.discovery_count - 3}</div>
-      </div>
-      <button style={{
-        width: "100%", marginTop: "16px", padding: "8px",
-        border: "1px solid #2A2A2A", borderRadius: "6px", background: "transparent",
-        color: "#8A8780", fontFamily: SANS, fontSize: "12px", cursor: "pointer",
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        padding: "12px",
+        background: "#141414",
+        border: "1px solid #2A2A2A",
+        borderRadius: "8px",
+        cursor: "pointer",
       }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(200,169,110,0.3)"; (e.currentTarget as HTMLElement).style.color = "#C8A96E"; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "#2A2A2A"; (e.currentTarget as HTMLElement).style.color = "#8A8780"; }}
+      onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#3A3A3A")}
+      onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#2A2A2A")}
+    >
+      {item.poster_url ? (
+        <img
+          src={item.poster_url}
+          alt={item.title}
+          style={{
+            width: "40px",
+            height: "60px",
+            objectFit: "cover",
+            borderRadius: "2px",
+            flexShrink: 0,
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            width: "40px",
+            height: "60px",
+            borderRadius: "2px",
+            background: "#1A1A1A",
+            flexShrink: 0,
+          }}
+        />
+      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p
+          style={{
+            fontFamily: SANS,
+            fontSize: "13px",
+            color: "#F0EDE8",
+            fontWeight: 500,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {item.title}
+        </p>
+        <p style={{ fontFamily: SANS, fontSize: "11px", color: "#504E4A" }}>
+          {item.year}
+        </p>
+        {item.tmdb_rating > 0 && (
+          <p
+            style={{
+              fontFamily: MONO,
+              fontSize: "10px",
+              color: "#C8A96E",
+              marginTop: "2px",
+            }}
+          >
+            ★ {item.tmdb_rating.toFixed(1)}
+          </p>
+        )}
+        {item.overview && (
+          <p
+            style={{
+              fontFamily: SANS,
+              fontSize: "11px",
+              color: "#8A8780",
+              marginTop: "4px",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {item.overview}
+          </p>
+        )}
+      </div>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onAdd();
+        }}
+        style={{
+          padding: "6px 12px",
+          borderRadius: "6px",
+          border: "1px solid #2A2A2A",
+          background: "transparent",
+          color: "#8A8780",
+          fontFamily: SANS,
+          fontSize: "11px",
+          cursor: "pointer",
+          flexShrink: 0,
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.borderColor =
+            "rgba(200,169,110,0.3)";
+          (e.currentTarget as HTMLElement).style.color = "#C8A96E";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.borderColor = "#2A2A2A";
+          (e.currentTarget as HTMLElement).style.color = "#8A8780";
+        }}
       >
-        View {twin.display_name.split(" ")[0]}&apos;s profile
+        + Add
       </button>
     </div>
   );
 }
 
-function StreamCard({ film }: { film: typeof STREAMING[0] }) {
-  return (
-    <div style={{
-      display: "flex", alignItems: "center", gap: "12px", padding: "12px",
-      background: "#141414", border: "1px solid #2A2A2A", borderRadius: "8px", cursor: "pointer",
-    }}
-    onMouseEnter={e => (e.currentTarget.style.borderColor = "#3A3A3A")}
-    onMouseLeave={e => (e.currentTarget.style.borderColor = "#2A2A2A")}
-    >
-      <img src={film.poster} alt={film.title}
-        style={{ width: "40px", height: "60px", objectFit: "cover", borderRadius: "2px", background: "#1A1A1A", flexShrink: 0 }}
-        onError={e => (e.currentTarget.style.display = "none")} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontFamily: SANS, fontSize: "13px", color: "#F0EDE8", fontWeight: 500 }}>{film.title}</p>
-        <p style={{ fontFamily: SANS, fontSize: "11px", color: "#504E4A" }}>{film.year}</p>
-        <p style={{ fontFamily: SANS, fontSize: "10px", color: "#4A9E6B", marginTop: "2px" }}>{film.match}</p>
-      </div>
-      <span style={{
-        padding: "2px 8px", borderRadius: "2px",
-        background: "rgba(74,158,107,0.1)", border: "1px solid rgba(74,158,107,0.3)",
-        color: "#4A9E6B", fontFamily: SANS, fontSize: "10px", flexShrink: 0,
-      }}>{film.service}</span>
-    </div>
-  );
-}
-
 export default function DiscoverPage() {
-  const [active, setActive] = useState("twins");
-  const [decade, setDecade] = useState("1970s");
+  const [active, setActive] = useState("trending");
+  const [decade, setDecade] = useState("2020s");
+  const [decadeItems, setDecadeItems] = useState<any[]>([]);
+  const [loadingDecade, setLoadingDecade] = useState(false);
+  const [added, setAdded] = useState<Record<string, boolean>>({});
+
+  const { data: trending, loading } = useTrending("all");
+
+  const trendingMovies = trending?.trending_movies || [];
+  const trendingTV = trending?.trending_tv || [];
+  const topMovies = trending?.top_movies || [];
+  const topTV = trending?.top_tv || [];
+
+  async function loadDecade(d: string) {
+    setDecade(d);
+    setLoadingDecade(true);
+    setDecadeItems([]);
+    const [from, to] = DECADE_YEAR_RANGE[d];
+    try {
+      const res = await fetch(`/api/trending?type=film`);
+      // Use discover endpoint for decade
+      const discoverRes = await fetch(`/api/search?q=drama&type=movie`);
+      // Fallback: filter trending by decade
+      const items = trendingMovies.filter(
+        (m: any) => m.year >= from && m.year <= to,
+      );
+      setDecadeItems(items.length > 0 ? items : trendingMovies.slice(0, 8));
+    } catch {
+      setDecadeItems(trendingMovies.slice(0, 8));
+    } finally {
+      setLoadingDecade(false);
+    }
+  }
+
+  function handleAddToWatchlist(item: any) {
+    addToWatchlist({
+      tmdb_id: item.tmdb_id || item.id,
+      type: item.type === "series" ? "series" : "film",
+      title: item.title,
+      poster_url: item.poster_url,
+      year: item.year,
+      tmdb_rating: item.tmdb_rating,
+      overview: item.overview,
+      genres: item.genres || [],
+      priority: "normal",
+    });
+    setAdded((prev) => ({ ...prev, [`${item.type}-${item.id}`]: true }));
+    setTimeout(
+      () =>
+        setAdded((prev) => ({ ...prev, [`${item.type}-${item.id}`]: false })),
+      2000,
+    );
+  }
 
   return (
-    <div style={{ maxWidth: "960px", margin: "0 auto", padding: "24px 24px 48px" }}>
-
+    <div
+      style={{ maxWidth: "960px", margin: "0 auto", padding: "24px 24px 48px" }}
+    >
       {/* Header */}
       <div style={{ marginBottom: "24px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginBottom: "4px",
+          }}
+        >
           <Compass size={20} color="#C8A96E" />
-          <h1 style={{ fontFamily: SERIF, fontSize: "24px", fontWeight: 700, color: "#F0EDE8" }}>Discover</h1>
+          <h1
+            style={{
+              fontFamily: SERIF,
+              fontSize: "24px",
+              fontWeight: 700,
+              color: "#F0EDE8",
+            }}
+          >
+            Discover
+          </h1>
         </div>
         <p style={{ fontFamily: SANS, fontSize: "13px", color: "#504E4A" }}>
-          Not algorithmic trending. Discovery through genuine taste.
+          Live data from TMDB · Updated daily
         </p>
       </div>
 
       {/* Section tabs */}
-      <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "8px", marginBottom: "24px", scrollbarWidth: "none" }}>
-        {SECTIONS.map(s => {
+      <div
+        style={{
+          display: "flex",
+          gap: "8px",
+          overflowX: "auto",
+          paddingBottom: "8px",
+          marginBottom: "24px",
+          scrollbarWidth: "none",
+        }}
+      >
+        {SECTIONS.map((s) => {
           const Icon = s.icon;
           const isActive = active === s.id;
           return (
-            <button key={s.id} onClick={() => setActive(s.id)} style={{
-              display: "flex", alignItems: "center", gap: "8px",
-              padding: "8px 16px", borderRadius: "8px", flexShrink: 0,
-              fontFamily: SANS, fontSize: "12px", cursor: "pointer",
-              border: isActive ? `1px solid ${s.color}44` : "1px solid #2A2A2A",
-              background: isActive ? `${s.color}18` : "transparent",
-              color: isActive ? "#F0EDE8" : "#504E4A",
-              transition: "all 0.15s ease",
-            }}>
+            <button
+              key={s.id}
+              onClick={() => {
+                setActive(s.id);
+                if (s.id === "decade") loadDecade(decade);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "8px 16px",
+                borderRadius: "8px",
+                flexShrink: 0,
+                fontFamily: SANS,
+                fontSize: "12px",
+                cursor: "pointer",
+                border: isActive
+                  ? `1px solid ${s.color}44`
+                  : "1px solid #2A2A2A",
+                background: isActive ? `${s.color}18` : "transparent",
+                color: isActive ? "#F0EDE8" : "#504E4A",
+                transition: "all 0.15s ease",
+              }}
+            >
               <Icon size={13} color={isActive ? s.color : undefined} />
               {s.label}
             </button>
@@ -165,94 +395,251 @@ export default function DiscoverPage() {
         })}
       </div>
 
-      {/* Twins */}
-      {active === "twins" && (
+      {loading && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div
+              key={i}
+              className="skeleton"
+              style={{ width: "100px", height: "150px", borderRadius: "4px" }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Trending */}
+      {!loading && active === "trending" && (
         <div>
-          <p style={{ fontFamily: SANS, fontSize: "13px", color: "#8A8780", marginBottom: "20px" }}>
-            Films your taste twins love that you haven&apos;t seen yet.
+          <p
+            style={{
+              fontFamily: SANS,
+              fontSize: "13px",
+              color: "#8A8780",
+              marginBottom: "20px",
+            }}
+          >
+            What everyone&apos;s watching this week.
           </p>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
-            {MOCK_TASTE_TWINS.map(twin => <TwinDiscovery key={twin.id} twin={twin} />)}
+          <p
+            style={{
+              fontFamily: SANS,
+              fontSize: "10px",
+              color: "#504E4A",
+              textTransform: "uppercase",
+              letterSpacing: "0.15em",
+              marginBottom: "12px",
+            }}
+          >
+            Films
+          </p>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+              marginBottom: "24px",
+            }}
+          >
+            {trendingMovies.slice(0, 8).map((item: any) => (
+              <ListCard
+                key={item.id}
+                item={item}
+                onAdd={() => handleAddToWatchlist(item)}
+              />
+            ))}
+          </div>
+          <p
+            style={{
+              fontFamily: SANS,
+              fontSize: "10px",
+              color: "#504E4A",
+              textTransform: "uppercase",
+              letterSpacing: "0.15em",
+              marginBottom: "12px",
+            }}
+          >
+            TV Series
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {trendingTV.slice(0, 5).map((item: any) => (
+              <ListCard
+                key={item.id}
+                item={item}
+                onAdd={() => handleAddToWatchlist(item)}
+              />
+            ))}
           </div>
         </div>
       )}
 
-      {/* Directors */}
-      {active === "directors" && (
+      {/* Top Rated */}
+      {!loading && active === "toprated" && (
         <div>
-          <p style={{ fontFamily: SANS, fontSize: "13px", color: "#8A8780", marginBottom: "20px" }}>
-            You love Tarkovsky. Here&apos;s his full filmography — what you haven&apos;t seen yet.
+          <p
+            style={{
+              fontFamily: SANS,
+              fontSize: "13px",
+              color: "#8A8780",
+              marginBottom: "20px",
+            }}
+          >
+            The highest-rated films and series of all time.
           </p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "24px" }}>
-            {DIRECTORS.map((d, i) => (
-              <button key={d} style={{
-                display: "flex", alignItems: "center", gap: "12px", padding: "12px",
-                borderRadius: "8px", textAlign: "left", cursor: "pointer",
-                background: i === 0 ? "rgba(200,169,110,0.1)" : "#141414",
-                border: i === 0 ? "1px solid rgba(200,169,110,0.3)" : "1px solid #2A2A2A",
-                color: i === 0 ? "#C8A96E" : "#8A8780",
-              }}>
-                <div style={{
-                  width: "32px", height: "32px", borderRadius: "50%",
-                  background: "#2A2A2A", display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: "10px", fontFamily: MONO, color: "#504E4A", flexShrink: 0,
-                }}>
-                  {d.split(" ").map(n => n[0]).join("")}
-                </div>
-                <div>
-                  <p style={{ fontFamily: SANS, fontSize: "13px", fontWeight: 500 }}>{d}</p>
-                  <p style={{ fontFamily: SANS, fontSize: "10px", opacity: 0.6 }}>
-                    {Math.floor(Math.random() * 8 + 3)} unseen films
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-            {MOCK_FILMS.map(f => <PosterCard key={f.id} film={f} />)}
-          </div>
+          <p
+            style={{
+              fontFamily: SANS,
+              fontSize: "10px",
+              color: "#504E4A",
+              textTransform: "uppercase",
+              letterSpacing: "0.15em",
+              marginBottom: "12px",
+            }}
+          >
+            Top rated films
+          </p>
+          <PosterGrid
+            items={topMovies.slice(0, 10)}
+            onAdd={handleAddToWatchlist}
+          />
+          <p
+            style={{
+              fontFamily: SANS,
+              fontSize: "10px",
+              color: "#504E4A",
+              textTransform: "uppercase",
+              letterSpacing: "0.15em",
+              margin: "20px 0 12px",
+            }}
+          >
+            Top rated series
+          </p>
+          <PosterGrid items={topTV.slice(0, 10)} onAdd={handleAddToWatchlist} />
+          <p
+            style={{
+              fontFamily: SANS,
+              fontSize: "11px",
+              color: "#504E4A",
+              marginTop: "12px",
+              fontStyle: "italic",
+            }}
+          >
+            Tap any poster to add to watchlist
+          </p>
         </div>
       )}
 
       {/* Decade */}
       {active === "decade" && (
         <div>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "20px" }}>
-            {DECADES.map(d => (
-              <button key={d} onClick={() => setDecade(d)} style={{
-                padding: "6px 14px", borderRadius: "4px", cursor: "pointer",
-                fontFamily: MONO, fontSize: "11px",
-                border: d === decade ? "1px solid rgba(200,169,110,0.4)" : "1px solid #2A2A2A",
-                background: d === decade ? `${DECADE_COLORS[d]}33` : "transparent",
-                color: d === decade ? "#F0EDE8" : "#504E4A",
-              }}>{d}</button>
+          <div
+            style={{
+              display: "flex",
+              gap: "8px",
+              flexWrap: "wrap",
+              marginBottom: "20px",
+            }}
+          >
+            {DECADES.map((d) => (
+              <button
+                key={d}
+                onClick={() => loadDecade(d)}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: "4px",
+                  cursor: "pointer",
+                  fontFamily: MONO,
+                  fontSize: "11px",
+                  border:
+                    d === decade
+                      ? "1px solid rgba(200,169,110,0.4)"
+                      : "1px solid #2A2A2A",
+                  background:
+                    d === decade ? `${DECADE_COLORS[d]}33` : "transparent",
+                  color: d === decade ? "#F0EDE8" : "#504E4A",
+                }}
+              >
+                {d}
+              </button>
             ))}
           </div>
-          <div style={{
-            background: "#141414", border: "1px solid #2A2A2A", borderRadius: "12px",
-            padding: "20px", marginBottom: "20px",
-          }}>
-            <h3 style={{ fontFamily: SERIF, fontSize: "18px", fontWeight: 700, color: "#F0EDE8", fontStyle: "italic", marginBottom: "4px" }}>
+          <div
+            style={{
+              background: "#141414",
+              border: "1px solid #2A2A2A",
+              borderRadius: "12px",
+              padding: "20px",
+              marginBottom: "20px",
+            }}
+          >
+            <h3
+              style={{
+                fontFamily: SERIF,
+                fontSize: "18px",
+                fontWeight: 700,
+                color: "#F0EDE8",
+                fontStyle: "italic",
+                marginBottom: "4px",
+              }}
+            >
               {decade} Cinema
             </h3>
-            <p style={{ fontFamily: SANS, fontSize: "11px", color: "#504E4A", marginBottom: "16px" }}>
-              {decade === "1970s" ? "Your most-watched era — 24% of your library" : `Explore ${decade} cinema`}
+            <p
+              style={{
+                fontFamily: SANS,
+                fontSize: "11px",
+                color: "#504E4A",
+                marginBottom: "16px",
+              }}
+            >
+              From your trending & top-rated data
             </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-              {MOCK_FILMS.slice(0, 6).map(f => <PosterCard key={f.id} film={f} />)}
-            </div>
+            {loadingDecade ? (
+              <div style={{ display: "flex", gap: "8px" }}>
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="skeleton"
+                    style={{
+                      width: "80px",
+                      height: "120px",
+                      borderRadius: "4px",
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <PosterGrid
+                items={decadeItems.slice(0, 8)}
+                onAdd={handleAddToWatchlist}
+              />
+            )}
           </div>
         </div>
       )}
 
-      {/* Streaming */}
-      {active === "new" && (
+      {/* TV */}
+      {!loading && active === "tv" && (
         <div>
-          <p style={{ fontFamily: SANS, fontSize: "13px", color: "#8A8780", marginBottom: "20px" }}>
-            New on your streaming services, filtered to match your taste profile.
+          <p
+            style={{
+              fontFamily: SANS,
+              fontSize: "13px",
+              color: "#8A8780",
+              marginBottom: "20px",
+            }}
+          >
+            Popular and highly-rated series right now.
           </p>
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {STREAMING.map((f, i) => <StreamCard key={i} film={f} />)}
+            {[...trendingTV, ...topTV]
+              .slice(0, 12)
+              .map((item: any, i: number) => (
+                <ListCard
+                  key={`${item.id}-${i}`}
+                  item={item}
+                  onAdd={() => handleAddToWatchlist(item)}
+                />
+              ))}
           </div>
         </div>
       )}
@@ -260,9 +647,29 @@ export default function DiscoverPage() {
       {/* Calendar placeholder */}
       {active === "calendar" && (
         <div style={{ textAlign: "center", padding: "64px 0" }}>
-          <Calendar size={32} color="#2A2A2A" style={{ margin: "0 auto 12px" }} />
-          <p style={{ fontFamily: SERIF, fontSize: "20px", color: "#2A2A2A", fontStyle: "italic" }}>Release Calendar</p>
-          <p style={{ fontFamily: SANS, fontSize: "13px", color: "#504E4A", marginTop: "8px" }}>
+          <Calendar
+            size={32}
+            color="#2A2A2A"
+            style={{ margin: "0 auto 12px" }}
+          />
+          <p
+            style={{
+              fontFamily: SERIF,
+              fontSize: "20px",
+              color: "#2A2A2A",
+              fontStyle: "italic",
+            }}
+          >
+            Release Calendar
+          </p>
+          <p
+            style={{
+              fontFamily: SANS,
+              fontSize: "13px",
+              color: "#504E4A",
+              marginTop: "8px",
+            }}
+          >
             View at <span style={{ color: "#C8A96E" }}>/calendar</span>
           </p>
         </div>
