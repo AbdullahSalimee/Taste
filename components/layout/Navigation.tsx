@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -13,8 +13,10 @@ import {
   Search,
   LogOut,
   Settings,
+  TrendingUp,
 } from "lucide-react";
 import { QuickLog } from "@/components/features/QuickLog";
+import { GlobalSearch } from "@/components/features/GlobalSearch";
 import { useAuth } from "@/lib/auth-context";
 
 const SERIF = "Playfair Display, Georgia, serif";
@@ -23,15 +25,15 @@ const SANS = "Inter, system-ui, sans-serif";
 const ALL_NAV = [
   { href: "/dashboard", icon: Home, label: "Home" },
   { href: "/discover", icon: Compass, label: "Discover" },
+  { href: "/activity", icon: TrendingUp, label: "Community" },
   { href: "/calendar", icon: Calendar, label: "Calendar" },
-  { href: "/lists", icon: ListVideo, label: "Lists" },
   { href: "/profile", icon: User, label: "Profile" },
 ];
 
 const BOTTOM_NAV = [
   { href: "/dashboard", icon: Home, label: "Home" },
   { href: "/discover", icon: Compass, label: "Discover" },
-  { href: "/calendar", icon: Calendar, label: "Calendar" },
+  { href: "/activity", icon: TrendingUp, label: "Community" },
   { href: "/profile", icon: User, label: "Profile" },
 ];
 
@@ -180,6 +182,7 @@ function UserMenu({ onClose }: { onClose: () => void }) {
 export function BottomNav() {
   const pathname = usePathname();
   const [logOpen, setLogOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { user } = useAuth();
 
   return (
@@ -327,6 +330,7 @@ export function BottomNav() {
       </nav>
       <style>{`@media (max-width: 639px) { .mobile-bottom-nav { display: block !important; } }`}</style>
       <QuickLog isOpen={logOpen} onClose={() => setLogOpen(false)} />
+      <GlobalSearch isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );
 }
@@ -335,7 +339,20 @@ export function Sidebar() {
   const pathname = usePathname();
   const [logOpen, setLogOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { user } = useAuth();
+
+  // Global keyboard shortcut ⌘K / Ctrl+K
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen((s) => !s);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const displayName =
     user?.user_metadata?.username || user?.email?.split("@")[0] || "";
@@ -391,6 +408,7 @@ export function Sidebar() {
         {/* Search */}
         <div style={{ padding: "0 16px 24px" }}>
           <button
+            onClick={() => setSearchOpen(true)}
             style={{
               width: "100%",
               display: "flex",
@@ -404,9 +422,32 @@ export function Sidebar() {
               fontFamily: SANS,
               fontSize: "14px",
               cursor: "pointer",
+              justifyContent: "space-between",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = "#3A3A3A";
+              (e.currentTarget as HTMLElement).style.color = "#8A8780";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = "#2A2A2A";
+              (e.currentTarget as HTMLElement).style.color = "#504E4A";
             }}
           >
-            <Search size={14} /> Search...
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Search size={14} /> Search...
+            </div>
+            <kbd
+              style={{
+                fontFamily: "JetBrains Mono, monospace",
+                fontSize: "9px",
+                border: "1px solid #2A2A2A",
+                borderRadius: "3px",
+                padding: "1px 5px",
+                color: "#2A2A2A",
+              }}
+            >
+              ⌘K
+            </kbd>
           </button>
         </div>
 
@@ -614,6 +655,7 @@ export function Sidebar() {
 
       <style>{`@media (min-width: 640px) { .desktop-sidebar { display: flex !important; } }`}</style>
       <QuickLog isOpen={logOpen} onClose={() => setLogOpen(false)} />
+      <GlobalSearch isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
+import { CommunityReviews } from "@/components/features/CommunityReviews";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -1729,7 +1731,11 @@ export default function TitleDetailPage() {
           {/* Tab: Reviews */}
           {activeTab === "reviews" && (
             <div style={{ animation: "fadeIn 0.3s ease" }}>
-              <CommentsSection tmdbId={tmdbId} title={data.title} />
+              <CommunityReviews
+                tmdbId={tmdbId}
+                mediaType={mediaType}
+                titleName={data.title}
+              />
             </div>
           )}
 
