@@ -170,23 +170,7 @@ export default function AuthPage() {
           options: { data: { username: username.toLowerCase() } },
         });
         if (err) throw err;
-        // Create profile row
-        const {
-          data: { user: newUser },
-        } = await supabase.auth.getUser();
-        if (newUser) {
-          await supabase.from("profiles").upsert(
-            {
-              id: newUser.id,
-              username: username.toLowerCase(),
-              display_name: username,
-            },
-            { onConflict: "id" },
-          );
-        }
-        setSuccess(
-          "Account created! Check your email to confirm, or sign in now.",
-        );
+        setSuccess("Account created! You can now sign in.");
         setMode("signin");
       }
     } catch (err: any) {
