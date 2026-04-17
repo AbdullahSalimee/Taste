@@ -24,6 +24,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useLogs, useWatchlist, useStats, useUserProfile } from "@/lib/hooks";
 import { saveUserProfile, removeLog } from "@/lib/store";
 import { TasteDNACard } from "@/components/features/TasteDNACard";
+import { getMyTwins } from "@/lib/twins";
 
 const SERIF = "Playfair Display, Georgia, serif";
 const SANS = "Inter, system-ui, sans-serif";
@@ -532,10 +533,15 @@ export default function ProfilePage() {
   const watchlist = useWatchlist();
   const stats = useStats();
   const profile = useUserProfile();
+  const [twins, setTwins] = useState<any[]>([]);
   const [tab, setTab] = useState<
     "overview" | "films" | "tv" | "watchlist" | "stats"
   >("overview");
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (user) getMyTwins().then(setTwins);
+  }, [user]);
 
   if (!user) {
     return (
@@ -1123,6 +1129,71 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Taste Twins ── */}
+      {tab === "overview" && (
+        <div
+          style={{
+            marginTop: "24px",
+            padding: "20px 24px",
+            background: "#111",
+            borderRadius: "12px",
+            border: "1px solid #1A1A1A",
+          }}
+        >
+          <p
+            style={{
+              fontFamily: SANS,
+              fontSize: "10px",
+              color: "#504E4A",
+              textTransform: "uppercase",
+              letterSpacing: "0.12em",
+              marginBottom: "14px",
+            }}
+          >
+            Taste Twins ({twins.length})
+          </p>
+          {twins.length === 0 ? (
+            <p style={{ fontFamily: SANS, fontSize: "13px", color: "#504E4A" }}>
+              Log 5+ films to discover your taste twins.
+            </p>
+          ) : (
+            twins.map((t: any) => (
+              <div
+                key={t.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "10px 0",
+                  borderBottom: "1px solid #1A1A1A",
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: SANS,
+                    fontSize: "13px",
+                    color: "#F0EDE8",
+                  }}
+                >
+                  {t.profiles?.display_name ||
+                    t.profiles?.username ||
+                    t.twin_user_id}
+                </span>
+                <span
+                  style={{
+                    fontFamily: SANS,
+                    fontSize: "12px",
+                    color: "#C8A96E",
+                  }}
+                >
+                  {t.match_count} shared · {t.match_percentage}%
+                </span>
+              </div>
+            ))
+          )}
         </div>
       )}
 

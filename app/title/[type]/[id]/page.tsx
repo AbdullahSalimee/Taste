@@ -2,6 +2,8 @@
 import { CommunityReviews } from "@/components/features/CommunityReviews";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
+import AuthModal from "@/components/ui/AuthModal";
 
 import Link from "next/link";
 import {
@@ -968,6 +970,9 @@ function CommentsSection({ tmdbId, title }: { tmdbId: number; title: string }) {
 export default function TitleDetailPage() {
   const { type, id } = useParams<{ type: string; id: string }>();
   const router = useRouter();
+  const { user } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authAction, setAuthAction] = useState("");
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [similar, setSimilar] = useState<any[]>([]);
@@ -1020,6 +1025,11 @@ export default function TitleDetailPage() {
   }
 
   function handleToggleWatchlist() {
+    if (!user) {
+      setAuthAction("save to watchlist");
+      setShowAuthModal(true);
+      return;
+    }
     if (onWatchlist) {
       removeFromWatchlist(tmdbId);
       setOnWatchlist(false);
@@ -1445,7 +1455,14 @@ export default function TitleDetailPage() {
             }}
           >
             <button
-              onClick={() => setLogOpen(true)}
+              onClick={() => {
+                if (!user) {
+                  setAuthAction("log this");
+                  setShowAuthModal(true);
+                  return;
+                }
+                setLogOpen(true);
+              }}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -2165,6 +2182,12 @@ export default function TitleDetailPage() {
           onLogged={() => setLogged(true)}
         />
       )}
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        action={authAction}
+      />
 
       <style>{`
         @media (max-width: 700px) {

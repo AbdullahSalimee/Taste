@@ -7,16 +7,17 @@ import {
   Compass,
   PenLine,
   User,
-  Bell,
   Calendar,
   ListVideo,
   Search,
   LogOut,
   Settings,
   TrendingUp,
+  MessageCircle,
 } from "lucide-react";
 import { QuickLog } from "@/components/features/QuickLog";
 import { GlobalSearch } from "@/components/features/GlobalSearch";
+import NotificationsPanel from "@/components/features/NotificationsPanel";
 import { useAuth } from "@/lib/auth-context";
 
 const SERIF = "Playfair Display, Georgia, serif";
@@ -570,11 +571,11 @@ export function Sidebar() {
           )}
         </div>
 
-        {/* Notifications — signed in only */}
+        {/* Notifications + Messages — signed in only */}
         {user && (
           <div style={{ padding: "0 16px 8px" }}>
             <Link
-              href="/notifications"
+              href="/messages"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -586,9 +587,21 @@ export function Sidebar() {
                 fontFamily: SANS,
                 fontSize: "14px",
               }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLElement).style.background = "#141414";
+                (e.currentTarget as HTMLElement).style.color = "#F0EDE8";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.background =
+                  "transparent";
+                (e.currentTarget as HTMLElement).style.color = "#504E4A";
+              }}
             >
-              <Bell size={16} /> Notifications
+              <MessageCircle size={16} /> Messages
             </Link>
+            <div style={{ padding: "4px 16px" }}>
+              <NotificationsPanel />
+            </div>
           </div>
         )}
 
