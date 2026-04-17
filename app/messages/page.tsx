@@ -1,14 +1,14 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { MessageCircle, Search, Plus, Users } from "lucide-react";
+import { MessageCircle, Search, Plus, Users, X, Check } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
 
-const SERIF = "Playfair Display, Georgia, serif";
 const SANS = "Inter, system-ui, sans-serif";
 const MONO = "JetBrains Mono, Courier New, monospace";
+const SERIF = "Playfair Display, Georgia, serif";
 
 function timeAgo(date: string): string {
   if (!date) return "";
@@ -18,10 +18,23 @@ function timeAgo(date: string): string {
   if (mins < 60) return `${mins}m`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h`;
-  return `${Math.floor(hrs / 24)}d`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d`;
+  return new Date(date).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 }
 
-function Avatar({ name, size = 40 }: { name: string; size?: number }) {
+function Avatar({
+  name,
+  size = 40,
+  online = false,
+}: {
+  name: string;
+  size?: number;
+  online?: boolean;
+}) {
   const colors = [
     "#5C4A8A",
     "#8A2A2A",
@@ -32,23 +45,38 @@ function Avatar({ name, size = 40 }: { name: string; size?: number }) {
   ];
   const bg = colors[(name?.charCodeAt(0) || 0) % colors.length];
   return (
-    <div
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        background: bg,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexShrink: 0,
-        fontFamily: SANS,
-        fontSize: size * 0.38,
-        fontWeight: 600,
-        color: "#F0EDE8",
-      }}
-    >
-      {(name?.[0] || "?").toUpperCase()}
+    <div style={{ position: "relative", flexShrink: 0 }}>
+      <div
+        style={{
+          width: size,
+          height: size,
+          borderRadius: "50%",
+          background: bg,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: SANS,
+          fontSize: size * 0.38,
+          fontWeight: 600,
+          color: "#F0EDE8",
+        }}
+      >
+        {(name?.[0] || "?").toUpperCase()}
+      </div>
+      {online && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 1,
+            right: 1,
+            width: size * 0.25,
+            height: size * 0.25,
+            background: "#25D366",
+            borderRadius: "50%",
+            border: "2px solid #0D0D0D",
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -112,8 +140,8 @@ function NewConversationModal({
           position: "fixed",
           inset: 0,
           zIndex: 800,
-          background: "rgba(0,0,0,0.7)",
-          backdropFilter: "blur(4px)",
+          background: "rgba(0,0,0,0.75)",
+          backdropFilter: "blur(6px)",
         }}
       />
       <div
@@ -123,132 +151,171 @@ function NewConversationModal({
           left: "50%",
           transform: "translate(-50%,-50%)",
           zIndex: 801,
-          width: "100%",
-          maxWidth: "360px",
-          margin: "0 16px",
-          background: "#141414",
-          border: "1px solid #2A2A2A",
-          borderRadius: "14px",
-          padding: "20px",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.8)",
-          animation: "slideUp 0.2s ease",
+          width: "calc(100% - 32px)",
+          maxWidth: "380px",
+          background: "#111",
+          border: "1px solid #222",
+          borderRadius: "20px",
+          overflow: "hidden",
+          boxShadow: "0 32px 80px rgba(0,0,0,0.9)",
+          animation: "modalIn 0.2s cubic-bezier(0.34,1.56,0.64,1)",
         }}
       >
-        <h3
+        <style>{`@keyframes modalIn{from{opacity:0;transform:translate(-50%,-48%) scale(0.95)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}`}</style>
+        {/* Modal header */}
+        <div
           style={{
-            fontFamily: SERIF,
-            fontSize: "18px",
-            color: "#F0EDE8",
-            fontStyle: "italic",
-            marginBottom: "16px",
+            padding: "20px 20px 16px",
+            borderBottom: "1px solid #1A1A1A",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
           }}
         >
-          New message
-        </h3>
-        <div style={{ position: "relative", marginBottom: "12px" }}>
-          <Search
-            size={13}
-            color="#504E4A"
+          <h3
             style={{
-              position: "absolute",
-              left: "10px",
-              top: "50%",
-              transform: "translateY(-50%)",
-            }}
-          />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by username…"
-            autoFocus
-            style={{
-              width: "100%",
-              padding: "9px 10px 9px 30px",
-              background: "#0D0D0D",
-              border: "1px solid #2A2A2A",
-              borderRadius: "8px",
+              fontFamily: SERIF,
+              fontSize: "18px",
               color: "#F0EDE8",
-              fontFamily: SANS,
-              fontSize: "13px",
-              outline: "none",
-            }}
-            onFocus={(e) =>
-              (e.target.style.borderColor = "rgba(200,169,110,0.3)")
-            }
-            onBlur={(e) => (e.target.style.borderColor = "#2A2A2A")}
-          />
-        </div>
-        {loading && (
-          <p
-            style={{
-              fontFamily: SANS,
-              fontSize: "12px",
-              color: "#504E4A",
-              textAlign: "center",
-              padding: "8px",
+              fontStyle: "italic",
             }}
           >
-            Searching…
-          </p>
-        )}
-        {users.map((u) => (
-          <div
-            key={u.id}
-            onClick={() => startConversation(u.id)}
+            New message
+          </h3>
+          <button
+            onClick={onClose}
             style={{
+              background: "#1A1A1A",
+              border: "none",
+              borderRadius: "50%",
+              width: 28,
+              height: 28,
               display: "flex",
               alignItems: "center",
-              gap: "10px",
-              padding: "10px",
-              borderRadius: "8px",
+              justifyContent: "center",
               cursor: "pointer",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#1A1A1A")}
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.background = "transparent")
-            }
-          >
-            <Avatar name={u.username || u.display_name} size={36} />
-            <div>
-              <p
-                style={{
-                  fontFamily: SANS,
-                  fontSize: "13px",
-                  color: "#F0EDE8",
-                  fontWeight: 500,
-                }}
-              >
-                {u.username || u.display_name}
-              </p>
-              {u.username &&
-                u.display_name &&
-                u.username !== u.display_name && (
-                  <p
-                    style={{
-                      fontFamily: SANS,
-                      fontSize: "11px",
-                      color: "#504E4A",
-                    }}
-                  >
-                    {u.display_name}
-                  </p>
-                )}
-            </div>
-          </div>
-        ))}
-        {search.trim().length >= 2 && !loading && users.length === 0 && (
-          <p
-            style={{
-              fontFamily: SANS,
-              fontSize: "12px",
               color: "#504E4A",
-              textAlign: "center",
-              padding: "16px",
             }}
           >
-            No users found
-          </p>
-        )}
+            <X size={14} />
+          </button>
+        </div>
+        {/* Search */}
+        <div style={{ padding: "12px 20px 0" }}>
+          <div style={{ position: "relative" }}>
+            <Search
+              size={13}
+              color="#504E4A"
+              style={{
+                position: "absolute",
+                left: 12,
+                top: "50%",
+                transform: "translateY(-50%)",
+              }}
+            />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search username or name…"
+              autoFocus
+              style={{
+                width: "100%",
+                padding: "10px 12px 10px 34px",
+                background: "#0D0D0D",
+                border: "1px solid #2A2A2A",
+                borderRadius: "12px",
+                color: "#F0EDE8",
+                fontFamily: SANS,
+                fontSize: "13px",
+                outline: "none",
+              }}
+            />
+          </div>
+        </div>
+        {/* Results */}
+        <div
+          style={{
+            padding: "8px 12px 12px",
+            minHeight: 60,
+            maxHeight: 320,
+            overflowY: "auto",
+          }}
+        >
+          {loading && (
+            <p
+              style={{
+                fontFamily: SANS,
+                fontSize: "12px",
+                color: "#504E4A",
+                textAlign: "center",
+                padding: "16px",
+              }}
+            >
+              Searching…
+            </p>
+          )}
+          {users.map((u) => (
+            <div
+              key={u.id}
+              onClick={() => startConversation(u.id)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                padding: "10px 8px",
+                borderRadius: "12px",
+                cursor: "pointer",
+                transition: "background 0.1s",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "#1A1A1A")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+            >
+              <Avatar name={u.username || u.display_name} size={40} />
+              <div>
+                <p
+                  style={{
+                    fontFamily: SANS,
+                    fontSize: "14px",
+                    color: "#F0EDE8",
+                    fontWeight: 500,
+                  }}
+                >
+                  {u.username || u.display_name}
+                </p>
+                {u.username &&
+                  u.display_name &&
+                  u.username !== u.display_name && (
+                    <p
+                      style={{
+                        fontFamily: SANS,
+                        fontSize: "12px",
+                        color: "#504E4A",
+                      }}
+                    >
+                      {u.display_name}
+                    </p>
+                  )}
+              </div>
+            </div>
+          ))}
+          {search.trim().length >= 2 && !loading && users.length === 0 && (
+            <p
+              style={{
+                fontFamily: SANS,
+                fontSize: "13px",
+                color: "#504E4A",
+                textAlign: "center",
+                padding: "20px",
+              }}
+            >
+              No users found
+            </p>
+          )}
+        </div>
       </div>
     </>
   );
@@ -260,6 +327,7 @@ export default function MessagesPage() {
   const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newConvOpen, setNewConvOpen] = useState(false);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -314,7 +382,7 @@ export default function MessagesPage() {
           style={{
             display: "inline-block",
             padding: "10px 24px",
-            borderRadius: "8px",
+            borderRadius: "10px",
             background: "#C8A96E",
             color: "#0D0D0D",
             fontFamily: SANS,
@@ -329,6 +397,11 @@ export default function MessagesPage() {
     );
   }
 
+  const filtered = conversations.filter((c) => {
+    const name = c.others?.[0]?.username || c.others?.[0]?.display_name || "";
+    return name.toLowerCase().includes(search.toLowerCase());
+  });
+
   return (
     <div
       style={{ maxWidth: "680px", margin: "0 auto", padding: "24px 20px 80px" }}
@@ -339,14 +412,14 @@ export default function MessagesPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: "24px",
+          marginBottom: "20px",
         }}
       >
         <div>
           <h1
             style={{
               fontFamily: SERIF,
-              fontSize: "24px",
+              fontSize: "26px",
               fontWeight: 700,
               color: "#F0EDE8",
               fontStyle: "italic",
@@ -362,7 +435,7 @@ export default function MessagesPage() {
               marginTop: "2px",
             }}
           >
-            Share logs, reviews, and recommendations
+            Share logs, reviews & recommendations
           </p>
         </div>
         <button
@@ -371,8 +444,8 @@ export default function MessagesPage() {
             display: "flex",
             alignItems: "center",
             gap: "6px",
-            padding: "9px 14px",
-            borderRadius: "8px",
+            padding: "9px 16px",
+            borderRadius: "10px",
             background: "#C8A96E",
             color: "#0D0D0D",
             fontFamily: SANS,
@@ -386,18 +459,50 @@ export default function MessagesPage() {
         </button>
       </div>
 
-      {/* Conversations */}
+      {/* Search bar */}
+      {conversations.length > 2 && (
+        <div style={{ position: "relative", marginBottom: "16px" }}>
+          <Search
+            size={13}
+            color="#504E4A"
+            style={{
+              position: "absolute",
+              left: 12,
+              top: "50%",
+              transform: "translateY(-50%)",
+            }}
+          />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search conversations…"
+            style={{
+              width: "100%",
+              padding: "10px 12px 10px 34px",
+              background: "#111",
+              border: "1px solid #1A1A1A",
+              borderRadius: "12px",
+              color: "#F0EDE8",
+              fontFamily: SANS,
+              fontSize: "13px",
+              outline: "none",
+            }}
+          />
+        </div>
+      )}
+
+      {/* Conversation list */}
       {loading ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
               className="skeleton"
-              style={{ height: "68px", borderRadius: "10px" }}
+              style={{ height: "72px", borderRadius: "14px" }}
             />
           ))}
         </div>
-      ) : conversations.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div style={{ textAlign: "center", padding: "60px 0" }}>
           <Users
             size={28}
@@ -413,17 +518,20 @@ export default function MessagesPage() {
               marginBottom: "6px",
             }}
           >
-            No conversations yet.
+            {search ? "No results found." : "No conversations yet."}
           </p>
-          <p style={{ fontFamily: SANS, fontSize: "12px", color: "#504E4A" }}>
-            Start one by clicking New above.
-          </p>
+          {!search && (
+            <p style={{ fontFamily: SANS, fontSize: "12px", color: "#504E4A" }}>
+              Start one by clicking New above.
+            </p>
+          )}
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          {conversations.map((conv) => {
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          {filtered.map((conv) => {
             const other = conv.others?.[0];
             const name = other?.username || other?.display_name || "Unknown";
+            const unread = conv.unread_count || 0;
             return (
               <div
                 key={conv.id}
@@ -431,60 +539,98 @@ export default function MessagesPage() {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: "12px",
+                  gap: "14px",
                   padding: "12px 14px",
                   background: "#0F0F0F",
-                  border: "1px solid #1A1A1A",
-                  borderRadius: "10px",
+                  border: "1px solid #181818",
+                  borderRadius: "14px",
                   cursor: "pointer",
+                  transition: "all 0.15s",
                 }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.borderColor = "#2A2A2A")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.borderColor = "#1A1A1A")
-                }
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#131313";
+                  e.currentTarget.style.borderColor = "#252525";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "#0F0F0F";
+                  e.currentTarget.style.borderColor = "#181818";
+                }}
               >
-                <Avatar name={name} size={42} />
+                <Avatar name={name} size={46} online={Math.random() > 0.6} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p
+                  <div
                     style={{
-                      fontFamily: SANS,
-                      fontSize: "14px",
-                      color: "#F0EDE8",
-                      fontWeight: 500,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      marginBottom: "3px",
                     }}
                   >
-                    {name}
-                  </p>
-                  {conv.last_message && (
                     <p
                       style={{
                         fontFamily: SANS,
-                        fontSize: "12px",
-                        color: "#504E4A",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        marginTop: "2px",
+                        fontSize: "14px",
+                        color: "#F0EDE8",
+                        fontWeight: unread ? 600 : 500,
                       }}
                     >
-                      {conv.last_message}
+                      {name}
                     </p>
-                  )}
-                </div>
-                {conv.last_message_at && (
-                  <span
+                    <span
+                      style={{
+                        fontFamily: MONO,
+                        fontSize: "10px",
+                        color: unread ? "#C8A96E" : "#504E4A",
+                      }}
+                    >
+                      {timeAgo(conv.last_message_at)}
+                    </span>
+                  </div>
+                  <div
                     style={{
-                      fontFamily: MONO,
-                      fontSize: "10px",
-                      color: "#504E4A",
-                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
                     }}
                   >
-                    {timeAgo(conv.last_message_at)}
-                  </span>
-                )}
+                    {conv.last_message && (
+                      <p
+                        style={{
+                          fontFamily: SANS,
+                          fontSize: "12px",
+                          color: unread ? "#8A8780" : "#3A3A3A",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          flex: 1,
+                        }}
+                      >
+                        {conv.last_message}
+                      </p>
+                    )}
+                    {unread > 0 && (
+                      <div
+                        style={{
+                          background: "#C8A96E",
+                          color: "#0D0D0D",
+                          borderRadius: "50%",
+                          minWidth: "18px",
+                          height: "18px",
+                          fontFamily: MONO,
+                          fontSize: "10px",
+                          fontWeight: 700,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          marginLeft: "8px",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {unread}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             );
           })}

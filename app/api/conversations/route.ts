@@ -29,7 +29,6 @@ export async function GET(request: NextRequest) {
 
   const db = getDb();
 
-  // Get all conversation IDs for this user
   const { data: participations } = await db
     .from("conversation_participants")
     .select("conversation_id")
@@ -39,7 +38,6 @@ export async function GET(request: NextRequest) {
 
   const convIds = participations.map((p) => p.conversation_id);
 
-  // Get conversations with last message
   const { data: conversations } = await db
     .from("conversations")
     .select("id, last_message, last_message_at, created_at")
@@ -48,13 +46,11 @@ export async function GET(request: NextRequest) {
 
   if (!conversations?.length) return NextResponse.json({ conversations: [] });
 
-  // Get all participants for each conversation
   const { data: allParticipants } = await db
     .from("conversation_participants")
     .select("conversation_id, user_id")
     .in("conversation_id", convIds);
 
-  // Get profile info for all participants except current user
   const otherUserIds = [
     ...new Set(
       (allParticipants || [])
@@ -70,18 +66,30 @@ export async function GET(request: NextRequest) {
 
   const profileMap = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
 
-  // Build conversation objects
+  // Count unread messages per conversation
+  const { data: unreadCounts } = await db
+    .from("messages")
+    .select("conversation_id, id")
+    .in("conversation_id", convIds)
+    .neq("sender_id", userId)
+    .eq("read", false);
+
+  const unreadMap: Record<string, number> = {};
+  for (const msg of unreadCounts || []) {
+    unreadMap[msg.conversation_id] = (unreadMap[msg.conversation_id] || 0) + 1;
+  }
+
   const result = conversations.map((conv) => {
     const otherIds = (allParticipants || [])
       .filter((p) => p.conversation_id === conv.id && p.user_id !== userId)
       .map((p) => p.user_id);
     const others = otherIds.map((id) => profileMap[id]).filter(Boolean);
 
-    // Count unread
     return {
       id: conv.id,
       last_message: conv.last_message,
       last_message_at: conv.last_message_at,
+      unread_count: unreadMap[conv.id] || 0,
       others,
     };
   });
@@ -105,7 +113,6 @@ export async function POST(request: NextRequest) {
 
   const db = getDb();
 
-  // Check if conversation already exists between these two users
   const { data: myConvs } = await db
     .from("conversation_participants")
     .select("conversation_id")
@@ -126,7 +133,6 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Create new conversation
   const { data: conv, error } = await db
     .from("conversations")
     .insert({ participant_ids: [userId, other_user_id] })
@@ -139,7 +145,6 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
 
-  // Add both participants
   await db.from("conversation_participants").insert([
     { conversation_id: conv.id, user_id: userId },
     { conversation_id: conv.id, user_id: other_user_id },

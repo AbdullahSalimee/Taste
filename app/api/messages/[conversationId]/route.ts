@@ -21,7 +21,7 @@ async function getUserId(request: NextRequest): Promise<string | null> {
   return user?.id ?? null;
 }
 
-// GET /api/messages/[conversationId] — load messages
+// GET — load messages with reply_to populated
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ conversationId: string }> },
@@ -33,7 +33,6 @@ export async function GET(
 
   const db = getDb();
 
-  // Verify user is a participant
   const { data: participant } = await db
     .from("conversation_participants")
     .select("conversation_id")
@@ -46,21 +45,44 @@ export async function GET(
 
   const { data: messages } = await db
     .from("messages")
-    .select("id, content, content_type, metadata, read, created_at, sender_id")
+    .select(
+      "id, content, content_type, metadata, read, created_at, sender_id, reply_to_id",
+    )
     .eq("conversation_id", conversationId)
     .order("created_at", { ascending: true })
     .limit(100);
 
-  // Get sender profiles
+  // Gather all sender ids
   const senderIds = [...new Set((messages || []).map((m) => m.sender_id))];
   const { data: profiles } = await db
     .from("profiles")
     .select("id, username, display_name")
     .in("id", senderIds);
-
   const profileMap = Object.fromEntries((profiles || []).map((p) => [p.id, p]));
 
-  // Mark messages from others as read
+  // Fetch reply_to messages
+  const replyIds = [
+    ...new Set(
+      (messages || []).filter((m) => m.reply_to_id).map((m) => m.reply_to_id),
+    ),
+  ];
+  let replyMap: Record<string, any> = {};
+  if (replyIds.length > 0) {
+    const { data: replyMsgs } = await db
+      .from("messages")
+      .select("id, content, content_type, sender_id")
+      .in("id", replyIds);
+    for (const r of replyMsgs || []) {
+      const senderProfile = profileMap[r.sender_id];
+      replyMap[r.id] = {
+        ...r,
+        sender_name:
+          senderProfile?.username || senderProfile?.display_name || "unknown",
+      };
+    }
+  }
+
+  // Mark as read
   await db
     .from("messages")
     .update({ read: true })
@@ -77,15 +99,18 @@ export async function GET(
       created_at: m.created_at,
       sender_id: m.sender_id,
       is_mine: m.sender_id === userId,
+      status: "read",
       sender_name:
         profileMap[m.sender_id]?.username ||
         profileMap[m.sender_id]?.display_name ||
         "unknown",
+      reply_to: m.reply_to_id ? replyMap[m.reply_to_id] || null : null,
+      reactions: {},
     })),
   });
 }
 
-// POST /api/messages/[conversationId] — send a message
+// POST — send a message with optional reply_to_id
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ conversationId: string }> },
@@ -96,14 +121,13 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json().catch(() => ({}));
-  const { content, content_type = "text", metadata } = body;
+  const { content, content_type = "text", metadata, reply_to_id } = body;
 
   if (!content?.trim())
     return NextResponse.json({ error: "Content required" }, { status: 400 });
 
   const db = getDb();
 
-  // Verify participant
   const { data: participant } = await db
     .from("conversation_participants")
     .select("conversation_id")
@@ -114,7 +138,6 @@ export async function POST(
   if (!participant)
     return NextResponse.json({ error: "Not a participant" }, { status: 403 });
 
-  // Insert message
   const { data: message, error } = await db
     .from("messages")
     .insert({
@@ -123,8 +146,9 @@ export async function POST(
       content: content.trim(),
       content_type,
       metadata: metadata || null,
+      reply_to_id: reply_to_id || null,
     })
-    .select("id, content, content_type, metadata, created_at")
+    .select("id, content, content_type, metadata, created_at, reply_to_id")
     .single();
 
   if (error)
@@ -142,7 +166,7 @@ export async function POST(
     })
     .eq("id", conversationId);
 
-  // Create notification for the other participant
+  // Notify other participants
   const { data: others } = await db
     .from("conversation_participants")
     .select("user_id")
@@ -172,8 +196,37 @@ export async function POST(
     });
   }
 
+  // Fetch reply_to for response
+  let reply_to = null;
+  if (reply_to_id) {
+    const { data: replyMsg } = await db
+      .from("messages")
+      .select("id, content, content_type, sender_id")
+      .eq("id", reply_to_id)
+      .maybeSingle();
+    if (replyMsg) {
+      const { data: replyProfile } = await db
+        .from("profiles")
+        .select("username, display_name")
+        .eq("id", replyMsg.sender_id)
+        .maybeSingle();
+      reply_to = {
+        ...replyMsg,
+        sender_name:
+          replyProfile?.username || replyProfile?.display_name || "unknown",
+      };
+    }
+  }
+
   return NextResponse.json({
     ok: true,
-    message: { ...message, is_mine: true, sender_id: userId },
+    message: {
+      ...message,
+      is_mine: true,
+      sender_id: userId,
+      status: "sent",
+      reactions: {},
+      reply_to,
+    },
   });
 }
