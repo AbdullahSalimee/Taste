@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Search, SlidersHorizontal, X, Film, Tv, Loader2 } from "lucide-react";
 import { addToWatchlist } from "@/lib/store";
+import { useAuthGate } from "@/components/features/AuthGate";
 
 const SERIF = "Playfair Display, Georgia, serif";
 const SANS = "Inter, system-ui, sans-serif";
@@ -420,6 +421,7 @@ function TitleRow({ item }: { item: TitleItem }) {
 }
 
 export default function DiscoverPage() {
+  const { requireAuth, gate } = useAuthGate();
   const [query, setQuery] = useState("");
   const [mediaType, setMediaType] = useState("all");
   const [genre, setGenre] = useState("");
@@ -497,6 +499,7 @@ export default function DiscoverPage() {
   }, [hasMore, loadingMore, loading, page, fetchTitles]);
 
   function handleWatchlist(item: TitleItem) {
+    if (!requireAuth("watchlist")) return;
     void addToWatchlist({
       tmdb_id: item.tmdb_id,
       type: item.type,
@@ -1094,6 +1097,7 @@ export default function DiscoverPage() {
         @media (min-width: 900px) { .row-overview { display: block !important; } }
         @media (max-width: 480px) { div[style*="minmax(130px"] { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)) !important; } }
       `}</style>
+      {gate}
     </div>
   );
 }

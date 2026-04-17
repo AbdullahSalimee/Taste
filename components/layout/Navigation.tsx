@@ -7,17 +7,18 @@ import {
   Compass,
   PenLine,
   User,
+  Bell,
   Calendar,
   ListVideo,
   Search,
   LogOut,
   Settings,
   TrendingUp,
+  Users,
   MessageCircle,
 } from "lucide-react";
 import { QuickLog } from "@/components/features/QuickLog";
 import { GlobalSearch } from "@/components/features/GlobalSearch";
-import NotificationsPanel from "@/components/features/NotificationsPanel";
 import { useAuth } from "@/lib/auth-context";
 
 const SERIF = "Playfair Display, Georgia, serif";
@@ -27,14 +28,17 @@ const ALL_NAV = [
   { href: "/dashboard", icon: Home, label: "Home" },
   { href: "/discover", icon: Compass, label: "Discover" },
   { href: "/activity", icon: TrendingUp, label: "Community" },
-  { href: "/calendar", icon: Calendar, label: "Calendar" },
+  { href: "/twins", icon: Users, label: "Twins" },
+  { href: "/messages", icon: MessageCircle, label: "Messages" },
+  { href: "/notifications", icon: Bell, label: "Notifications" },
   { href: "/profile", icon: User, label: "Profile" },
 ];
 
 const BOTTOM_NAV = [
   { href: "/dashboard", icon: Home, label: "Home" },
   { href: "/discover", icon: Compass, label: "Discover" },
-  { href: "/activity", icon: TrendingUp, label: "Community" },
+  { href: "/messages", icon: MessageCircle, label: "Messages" },
+  { href: "/notifications", icon: Bell, label: "Alerts" },
   { href: "/profile", icon: User, label: "Profile" },
 ];
 
@@ -341,6 +345,7 @@ export function Sidebar() {
   const [logOpen, setLogOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const { user } = useAuth();
 
   // Global keyboard shortcut ⌘K / Ctrl+K
@@ -354,6 +359,25 @@ export function Sidebar() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // Poll for unread notifications
+  useEffect(() => {
+    if (!user) return;
+    async function fetchCount() {
+      const {
+        data: { session },
+      } = await (await import("@/lib/supabase")).supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch("/api/notifications", {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      const data = await res.json().catch(() => ({}));
+      setUnreadCount(data.unread_count || 0);
+    }
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const displayName =
     user?.user_metadata?.username || user?.email?.split("@")[0] || "";
@@ -494,6 +518,22 @@ export function Sidebar() {
               >
                 <Icon size={16} />
                 {label}
+                {href === "/notifications" && unreadCount > 0 && (
+                  <span
+                    style={{
+                      marginLeft: "auto",
+                      background: "#C8A96E",
+                      color: "#0D0D0D",
+                      borderRadius: "10px",
+                      padding: "0 6px",
+                      fontFamily: "JetBrains Mono, monospace",
+                      fontSize: "10px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -571,11 +611,11 @@ export function Sidebar() {
           )}
         </div>
 
-        {/* Notifications + Messages — signed in only */}
+        {/* Notifications — signed in only */}
         {user && (
           <div style={{ padding: "0 16px 8px" }}>
             <Link
-              href="/messages"
+              href="/notifications"
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -587,21 +627,9 @@ export function Sidebar() {
                 fontFamily: SANS,
                 fontSize: "14px",
               }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background = "#141414";
-                (e.currentTarget as HTMLElement).style.color = "#F0EDE8";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.background =
-                  "transparent";
-                (e.currentTarget as HTMLElement).style.color = "#504E4A";
-              }}
             >
-              <MessageCircle size={16} /> Messages
+              <Bell size={16} /> Notifications
             </Link>
-            <div style={{ padding: "4px 16px" }}>
-              <NotificationsPanel />
-            </div>
           </div>
         )}
 

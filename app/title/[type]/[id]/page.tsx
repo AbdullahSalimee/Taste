@@ -1,10 +1,9 @@
 "use client";
 import { CommunityReviews } from "@/components/features/CommunityReviews";
+import { useAuthGate } from "@/components/features/AuthGate";
+import { useAuth } from "@/lib/auth-context";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
-import AuthModal from "@/components/ui/AuthModal";
-
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -971,8 +970,7 @@ export default function TitleDetailPage() {
   const { type, id } = useParams<{ type: string; id: string }>();
   const router = useRouter();
   const { user } = useAuth();
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authAction, setAuthAction] = useState("");
+  const { requireAuth, gate } = useAuthGate();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [similar, setSimilar] = useState<any[]>([]);
@@ -1025,11 +1023,6 @@ export default function TitleDetailPage() {
   }
 
   function handleToggleWatchlist() {
-    if (!user) {
-      setAuthAction("save to watchlist");
-      setShowAuthModal(true);
-      return;
-    }
     if (onWatchlist) {
       removeFromWatchlist(tmdbId);
       setOnWatchlist(false);
@@ -1456,12 +1449,7 @@ export default function TitleDetailPage() {
           >
             <button
               onClick={() => {
-                if (!user) {
-                  setAuthAction("log this");
-                  setShowAuthModal(true);
-                  return;
-                }
-                setLogOpen(true);
+                if (requireAuth("log")) setLogOpen(true);
               }}
               style={{
                 display: "flex",
@@ -1483,7 +1471,9 @@ export default function TitleDetailPage() {
             </button>
 
             <button
-              onClick={handleToggleWatchlist}
+              onClick={() => {
+                if (requireAuth("watchlist")) handleToggleWatchlist();
+              }}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -1506,8 +1496,8 @@ export default function TitleDetailPage() {
               {onWatchlist ? "Saved" : "Watchlist"}
             </button>
 
-            {/* User quick-rate */}
-            {!logged && (
+            {/* User quick-rate — only for signed in users */}
+            {user && !logged && (
               <div
                 style={{
                   display: "flex",
@@ -1528,6 +1518,28 @@ export default function TitleDetailPage() {
                   size={18}
                 />
               </div>
+            )}
+
+            {/* Sign in prompt for guests instead of rate */}
+            {!user && (
+              <button
+                onClick={() => requireAuth("rate")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  border: "1px dashed #2A2A2A",
+                  background: "transparent",
+                  color: "#504E4A",
+                  fontFamily: SANS,
+                  fontSize: "12px",
+                  cursor: "pointer",
+                }}
+              >
+                ☆☆☆☆☆ Rate
+              </button>
             )}
           </div>
 
@@ -2167,6 +2179,9 @@ export default function TitleDetailPage() {
         </div>
       </div>
 
+      {/* Auth Gate */}
+      {gate}
+
       {/* Log Sheet */}
       {logOpen && (
         <LogSheet
@@ -2182,12 +2197,6 @@ export default function TitleDetailPage() {
           onLogged={() => setLogged(true)}
         />
       )}
-
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        action={authAction}
-      />
 
       <style>{`
         @media (max-width: 700px) {

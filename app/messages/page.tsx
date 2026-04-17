@@ -1,702 +1,502 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
-import { useAuth } from "@/lib/auth-context";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  getConversations,
-  getMessages,
-  sendTextMessage,
-  shareLog,
-  shareReview,
-  markMessagesAsRead,
-  subscribeToMessages,
-  searchUsers,
-  getOrCreateConversation,
-  type Conversation,
-  type Message,
-} from "@/lib/messages";
-import {
-  Send,
-  ArrowLeft,
-  Search,
-  Share2,
-  User,
-  Film,
-  Star,
-} from "lucide-react";
 import Link from "next/link";
+import { MessageCircle, Search, Plus, Users } from "lucide-react";
+import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/lib/supabase";
 
 const SERIF = "Playfair Display, Georgia, serif";
 const SANS = "Inter, system-ui, sans-serif";
 const MONO = "JetBrains Mono, Courier New, monospace";
 
-function formatTime(timestamp: string): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-
-  if (diffMins < 1) return "Just now";
-  if (diffMins < 60) return `${diffMins}m`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h`;
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays < 7) return `${diffDays}d`;
-  return date.toLocaleDateString();
+function timeAgo(date: string): string {
+  if (!date) return "";
+  const diff = Date.now() - new Date(date).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "now";
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h`;
+  return `${Math.floor(hrs / 24)}d`;
 }
 
-function MessageBubble({
-  message,
-  isOwn,
-}: {
-  message: Message;
-  isOwn: boolean;
-}) {
+function Avatar({ name, size = 40 }: { name: string; size?: number }) {
+  const colors = [
+    "#5C4A8A",
+    "#8A2A2A",
+    "#2A5C8A",
+    "#2A6A5C",
+    "#8A7A2A",
+    "#8A2A5C",
+  ];
+  const bg = colors[(name?.charCodeAt(0) || 0) % colors.length];
   return (
     <div
       style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: bg,
         display: "flex",
-        flexDirection: "column",
-        alignItems: isOwn ? "flex-end" : "flex-start",
-        marginBottom: "12px",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+        fontFamily: SANS,
+        fontSize: size * 0.38,
+        fontWeight: 600,
+        color: "#F0EDE8",
       }}
     >
+      {(name?.[0] || "?").toUpperCase()}
+    </div>
+  );
+}
+
+function NewConversationModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (id: string) => void;
+}) {
+  const { user } = useAuth();
+  const [search, setSearch] = useState("");
+  const [users, setUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (search.trim().length < 2) {
+      setUsers([]);
+      return;
+    }
+    const t = setTimeout(async () => {
+      setLoading(true);
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, username, display_name")
+        .or(`username.ilike.%${search}%,display_name.ilike.%${search}%`)
+        .neq("id", user?.id || "")
+        .limit(8);
+      setUsers(data || []);
+      setLoading(false);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search, user]);
+
+  async function startConversation(otherUserId: string) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) return;
+    const res = await fetch("/api/conversations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ other_user_id: otherUserId }),
+    });
+    const data = await res.json();
+    if (data.conversation_id) {
+      onCreated(data.conversation_id);
+      onClose();
+    }
+  }
+
+  return (
+    <>
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 800,
+          background: "rgba(0,0,0,0.7)",
+          backdropFilter: "blur(4px)",
+        }}
+      />
       <div
         style={{
-          maxWidth: "75%",
-          background: isOwn ? "#C8A96E" : "#1A1A1A",
-          color: isOwn ? "#0D0D0D" : "#F0EDE8",
-          padding: "10px 14px",
-          borderRadius: "16px",
-          fontFamily: SANS,
-          fontSize: "14px",
-          lineHeight: 1.4,
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%,-50%)",
+          zIndex: 801,
+          width: "100%",
+          maxWidth: "360px",
+          margin: "0 16px",
+          background: "#141414",
+          border: "1px solid #2A2A2A",
+          borderRadius: "14px",
+          padding: "20px",
+          boxShadow: "0 24px 60px rgba(0,0,0,0.8)",
+          animation: "slideUp 0.2s ease",
         }}
       >
-        {message.content_type === "text" && <p>{message.content}</p>}
-
-        {message.content_type === "log_share" && message.metadata && (
-          <div>
-            <div
-              style={{
-                display: "flex",
-                gap: "10px",
-                alignItems: "center",
-                marginBottom: "8px",
-              }}
-            >
-              <Film size={16} style={{ opacity: 0.7 }} />
-              <span style={{ fontWeight: 600, fontSize: "13px" }}>
-                Shared a log
-              </span>
-            </div>
-            <div
-              style={{
-                background: isOwn ? "rgba(0,0,0,0.1)" : "rgba(200,169,110,0.1)",
-                padding: "10px",
-                borderRadius: "8px",
-                fontSize: "12px",
-              }}
-            >
-              <p style={{ fontWeight: 600, marginBottom: "4px" }}>
-                {message.metadata.title}
-              </p>
-              {message.metadata.user_rating && (
-                <div
-                  style={{ display: "flex", gap: "4px", marginBottom: "4px" }}
-                >
-                  <Star size={12} fill="#C8A96E" stroke="#C8A96E" />
-                  <span>{message.metadata.user_rating}/5</span>
-                </div>
-              )}
-              {message.metadata.note && (
-                <p style={{ opacity: 0.8, fontSize: "11px" }}>
-                  "{message.metadata.note}"
-                </p>
-              )}
-            </div>
-          </div>
+        <h3
+          style={{
+            fontFamily: SERIF,
+            fontSize: "18px",
+            color: "#F0EDE8",
+            fontStyle: "italic",
+            marginBottom: "16px",
+          }}
+        >
+          New message
+        </h3>
+        <div style={{ position: "relative", marginBottom: "12px" }}>
+          <Search
+            size={13}
+            color="#504E4A"
+            style={{
+              position: "absolute",
+              left: "10px",
+              top: "50%",
+              transform: "translateY(-50%)",
+            }}
+          />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by username…"
+            autoFocus
+            style={{
+              width: "100%",
+              padding: "9px 10px 9px 30px",
+              background: "#0D0D0D",
+              border: "1px solid #2A2A2A",
+              borderRadius: "8px",
+              color: "#F0EDE8",
+              fontFamily: SANS,
+              fontSize: "13px",
+              outline: "none",
+            }}
+            onFocus={(e) =>
+              (e.target.style.borderColor = "rgba(200,169,110,0.3)")
+            }
+            onBlur={(e) => (e.target.style.borderColor = "#2A2A2A")}
+          />
+        </div>
+        {loading && (
+          <p
+            style={{
+              fontFamily: SANS,
+              fontSize: "12px",
+              color: "#504E4A",
+              textAlign: "center",
+              padding: "8px",
+            }}
+          >
+            Searching…
+          </p>
         )}
-
-        {message.content_type === "review_share" && message.metadata && (
-          <div>
-            <div
-              style={{
-                display: "flex",
-                gap: "10px",
-                alignItems: "center",
-                marginBottom: "8px",
-              }}
-            >
-              <Share2 size={16} style={{ opacity: 0.7 }} />
-              <span style={{ fontWeight: 600, fontSize: "13px" }}>
-                Shared a review
-              </span>
-            </div>
-            <div
-              style={{
-                background: isOwn ? "rgba(0,0,0,0.1)" : "rgba(200,169,110,0.1)",
-                padding: "10px",
-                borderRadius: "8px",
-                fontSize: "12px",
-              }}
-            >
-              <p style={{ fontWeight: 600, marginBottom: "4px" }}>
-                {message.metadata.title}
+        {users.map((u) => (
+          <div
+            key={u.id}
+            onClick={() => startConversation(u.id)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              padding: "10px",
+              borderRadius: "8px",
+              cursor: "pointer",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#1A1A1A")}
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.background = "transparent")
+            }
+          >
+            <Avatar name={u.username || u.display_name} size={36} />
+            <div>
+              <p
+                style={{
+                  fontFamily: SANS,
+                  fontSize: "13px",
+                  color: "#F0EDE8",
+                  fontWeight: 500,
+                }}
+              >
+                {u.username || u.display_name}
               </p>
-              <p style={{ opacity: 0.8, fontSize: "11px" }}>
-                "{message.metadata.review_body}"
-              </p>
+              {u.username &&
+                u.display_name &&
+                u.username !== u.display_name && (
+                  <p
+                    style={{
+                      fontFamily: SANS,
+                      fontSize: "11px",
+                      color: "#504E4A",
+                    }}
+                  >
+                    {u.display_name}
+                  </p>
+                )}
             </div>
           </div>
+        ))}
+        {search.trim().length >= 2 && !loading && users.length === 0 && (
+          <p
+            style={{
+              fontFamily: SANS,
+              fontSize: "12px",
+              color: "#504E4A",
+              textAlign: "center",
+              padding: "16px",
+            }}
+          >
+            No users found
+          </p>
         )}
       </div>
-      <span
-        style={{
-          fontFamily: MONO,
-          fontSize: "10px",
-          color: "#504E4A",
-          marginTop: "4px",
-        }}
-      >
-        {formatTime(message.created_at)}
-      </span>
-    </div>
+    </>
   );
 }
 
 export default function MessagesPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConvId, setActiveConvId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [messageInput, setMessageInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [newConvOpen, setNewConvOpen] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.push("/auth");
-    } else if (user) {
-      loadConversations();
-    }
-  }, [user, authLoading]);
-
-  useEffect(() => {
-    if (activeConvId) {
-      loadMessages();
-      markMessagesAsRead(activeConvId);
-
-      // Subscribe to new messages
-      const unsubscribe = subscribeToMessages(activeConvId, (newMessage) => {
-        setMessages((prev) => [...prev, newMessage]);
-        markMessagesAsRead(activeConvId);
-      });
-
-      return unsubscribe;
-    }
-  }, [activeConvId]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      searchUsers(searchQuery).then(setSearchResults);
-    } else {
-      setSearchResults([]);
-    }
-  }, [searchQuery]);
+    if (!user) return;
+    loadConversations();
+  }, [user]);
 
   async function loadConversations() {
     setLoading(true);
-    const convs = await getConversations();
-    setConversations(convs);
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) {
+      setLoading(false);
+      return;
+    }
+    const res = await fetch("/api/conversations", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    const data = await res.json();
+    setConversations(data.conversations || []);
     setLoading(false);
   }
 
-  async function loadMessages() {
-    if (!activeConvId) return;
-    const msgs = await getMessages(activeConvId);
-    setMessages(msgs);
+  if (!authLoading && !user) {
+    return (
+      <div
+        style={{
+          maxWidth: "480px",
+          margin: "80px auto",
+          padding: "0 24px",
+          textAlign: "center",
+        }}
+      >
+        <MessageCircle
+          size={32}
+          color="#2A2A2A"
+          style={{ margin: "0 auto 12px", display: "block" }}
+        />
+        <p
+          style={{
+            fontFamily: SERIF,
+            fontSize: "20px",
+            color: "#504E4A",
+            fontStyle: "italic",
+            marginBottom: "16px",
+          }}
+        >
+          Sign in to message people.
+        </p>
+        <Link
+          href="/auth"
+          style={{
+            display: "inline-block",
+            padding: "10px 24px",
+            borderRadius: "8px",
+            background: "#C8A96E",
+            color: "#0D0D0D",
+            fontFamily: SANS,
+            fontSize: "13px",
+            fontWeight: 600,
+            textDecoration: "none",
+          }}
+        >
+          Sign in
+        </Link>
+      </div>
+    );
   }
-
-  async function handleSendMessage() {
-    if (!messageInput.trim() || !activeConvId) return;
-
-    await sendTextMessage(activeConvId, messageInput);
-    setMessageInput("");
-  }
-
-  async function handleStartConversation(userId: string) {
-    const convId = await getOrCreateConversation(userId);
-    if (convId) {
-      await loadConversations();
-      setActiveConvId(convId);
-      setSearchQuery("");
-    }
-  }
-
-  const activeConv = conversations.find((c) => c.id === activeConvId);
-
-  if (!user) return null;
 
   return (
     <div
-      style={{
-        height: "100vh",
-        display: "flex",
-        background: "#0D0D0D",
-        color: "#F0EDE8",
-      }}
+      style={{ maxWidth: "680px", margin: "0 auto", padding: "24px 20px 80px" }}
     >
-      {/* Sidebar - Conversations list */}
+      {/* Header */}
       <div
         style={{
-          width: "320px",
-          borderRight: "1px solid #2A2A2A",
           display: "flex",
-          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: "24px",
         }}
       >
-        {/* Header */}
-        <div
-          style={{
-            padding: "20px",
-            borderBottom: "1px solid #2A2A2A",
-          }}
-        >
+        <div>
           <h1
             style={{
               fontFamily: SERIF,
               fontSize: "24px",
               fontWeight: 700,
+              color: "#F0EDE8",
               fontStyle: "italic",
-              marginBottom: "16px",
             }}
           >
             Messages
           </h1>
-
-          {/* Search */}
-          <div style={{ position: "relative" }}>
-            <Search
-              size={16}
-              style={{
-                position: "absolute",
-                left: "12px",
-                top: "50%",
-                transform: "translateY(-50%)",
-                color: "#504E4A",
-              }}
-            />
-            <input
-              type="text"
-              placeholder="Search users..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "10px 12px 10px 36px",
-                background: "#1A1A1A",
-                border: "1px solid #2A2A2A",
-                borderRadius: "8px",
-                color: "#F0EDE8",
-                fontFamily: SANS,
-                fontSize: "13px",
-                outline: "none",
-              }}
-              onFocus={(e) =>
-                (e.target.style.borderColor = "rgba(200,169,110,0.3)")
-              }
-              onBlur={(e) => (e.target.style.borderColor = "#2A2A2A")}
-            />
-          </div>
-        </div>
-
-        {/* Search results */}
-        {searchResults.length > 0 && (
-          <div
+          <p
             style={{
-              borderBottom: "1px solid #2A2A2A",
-              maxHeight: "200px",
-              overflowY: "auto",
+              fontFamily: SANS,
+              fontSize: "12px",
+              color: "#504E4A",
+              marginTop: "2px",
             }}
           >
-            {searchResults.map((u) => (
-              <button
-                key={u.id}
-                onClick={() => handleStartConversation(u.id)}
+            Share logs, reviews, and recommendations
+          </p>
+        </div>
+        <button
+          onClick={() => setNewConvOpen(true)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+            padding: "9px 14px",
+            borderRadius: "8px",
+            background: "#C8A96E",
+            color: "#0D0D0D",
+            fontFamily: SANS,
+            fontSize: "13px",
+            fontWeight: 600,
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          <Plus size={14} /> New
+        </button>
+      </div>
+
+      {/* Conversations */}
+      {loading ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="skeleton"
+              style={{ height: "68px", borderRadius: "10px" }}
+            />
+          ))}
+        </div>
+      ) : conversations.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "60px 0" }}>
+          <Users
+            size={28}
+            color="#2A2A2A"
+            style={{ margin: "0 auto 12px", display: "block" }}
+          />
+          <p
+            style={{
+              fontFamily: SERIF,
+              fontSize: "18px",
+              color: "#2A2A2A",
+              fontStyle: "italic",
+              marginBottom: "6px",
+            }}
+          >
+            No conversations yet.
+          </p>
+          <p style={{ fontFamily: SANS, fontSize: "12px", color: "#504E4A" }}>
+            Start one by clicking New above.
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          {conversations.map((conv) => {
+            const other = conv.others?.[0];
+            const name = other?.username || other?.display_name || "Unknown";
+            return (
+              <div
+                key={conv.id}
+                onClick={() => router.push(`/messages/${conv.id}`)}
                 style={{
-                  width: "100%",
-                  padding: "12px 20px",
                   display: "flex",
-                  gap: "12px",
                   alignItems: "center",
-                  background: "none",
-                  border: "none",
+                  gap: "12px",
+                  padding: "12px 14px",
+                  background: "#0F0F0F",
+                  border: "1px solid #1A1A1A",
+                  borderRadius: "10px",
                   cursor: "pointer",
-                  color: "#F0EDE8",
-                  textAlign: "left",
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "#1A1A1A";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "none";
-                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.borderColor = "#2A2A2A")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.borderColor = "#1A1A1A")
+                }
               >
-                <div
-                  style={{
-                    width: "40px",
-                    height: "40px",
-                    borderRadius: "50%",
-                    background: "rgba(200,169,110,0.2)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <User size={20} style={{ color: "#C8A96E" }} />
-                </div>
-                <div style={{ flex: 1 }}>
+                <Avatar name={name} size={42} />
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <p
                     style={{
                       fontFamily: SANS,
                       fontSize: "14px",
-                      fontWeight: 600,
-                      marginBottom: "2px",
+                      color: "#F0EDE8",
+                      fontWeight: 500,
                     }}
                   >
-                    {u.display_name}
+                    {name}
                   </p>
-                  <p
-                    style={{
-                      fontFamily: MONO,
-                      fontSize: "11px",
-                      color: "#504E4A",
-                    }}
-                  >
-                    @{u.username}
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Conversations list */}
-        <div style={{ flex: 1, overflowY: "auto" }}>
-          {loading ? (
-            <div
-              style={{
-                padding: "40px 20px",
-                textAlign: "center",
-                color: "#504E4A",
-                fontFamily: SANS,
-                fontSize: "13px",
-              }}
-            >
-              Loading...
-            </div>
-          ) : conversations.length === 0 ? (
-            <div
-              style={{
-                padding: "40px 20px",
-                textAlign: "center",
-              }}
-            >
-              <p
-                style={{
-                  fontFamily: SANS,
-                  fontSize: "13px",
-                  color: "#504E4A",
-                }}
-              >
-                No conversations yet
-              </p>
-            </div>
-          ) : (
-            conversations.map((conv) => {
-              const otherUser = conv.participants?.[0];
-              return (
-                <button
-                  key={conv.id}
-                  onClick={() => setActiveConvId(conv.id)}
-                  style={{
-                    width: "100%",
-                    padding: "16px 20px",
-                    display: "flex",
-                    gap: "12px",
-                    alignItems: "flex-start",
-                    background: activeConvId === conv.id ? "#1A1A1A" : "none",
-                    border: "none",
-                    borderBottom: "1px solid #1A1A1A",
-                    cursor: "pointer",
-                    color: "#F0EDE8",
-                    textAlign: "left",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (activeConvId !== conv.id) {
-                      e.currentTarget.style.background = "#141414";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (activeConvId !== conv.id) {
-                      e.currentTarget.style.background = "none";
-                    }
-                  }}
-                >
-                  <div
-                    style={{
-                      width: "48px",
-                      height: "48px",
-                      borderRadius: "50%",
-                      background: "rgba(200,169,110,0.2)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <User size={24} style={{ color: "#C8A96E" }} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p
-                      style={{
-                        fontFamily: SANS,
-                        fontSize: "14px",
-                        fontWeight: 600,
-                        marginBottom: "4px",
-                      }}
-                    >
-                      {otherUser?.display_name || "Unknown"}
-                    </p>
+                  {conv.last_message && (
                     <p
                       style={{
                         fontFamily: SANS,
                         fontSize: "12px",
-                        color: "#8A8780",
+                        color: "#504E4A",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
+                        marginTop: "2px",
                       }}
                     >
-                      {conv.last_message || "No messages yet"}
+                      {conv.last_message}
                     </p>
-                  </div>
-                  {conv.last_message_at && (
-                    <span
-                      style={{
-                        fontFamily: MONO,
-                        fontSize: "10px",
-                        color: "#504E4A",
-                      }}
-                    >
-                      {formatTime(conv.last_message_at)}
-                    </span>
                   )}
-                </button>
-              );
-            })
-          )}
+                </div>
+                {conv.last_message_at && (
+                  <span
+                    style={{
+                      fontFamily: MONO,
+                      fontSize: "10px",
+                      color: "#504E4A",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {timeAgo(conv.last_message_at)}
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
-      </div>
+      )}
 
-      {/* Main chat area */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
-        {activeConv ? (
-          <>
-            {/* Chat header */}
-            <div
-              style={{
-                padding: "20px",
-                borderBottom: "1px solid #2A2A2A",
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-              }}
-            >
-              <button
-                onClick={() => setActiveConvId(null)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "#8A8780",
-                  padding: "8px",
-                  display: "none", // Show on mobile only
-                }}
-              >
-                <ArrowLeft size={20} />
-              </button>
-              <div
-                style={{
-                  width: "40px",
-                  height: "40px",
-                  borderRadius: "50%",
-                  background: "rgba(200,169,110,0.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <User size={20} style={{ color: "#C8A96E" }} />
-              </div>
-              <div>
-                <p
-                  style={{
-                    fontFamily: SANS,
-                    fontSize: "16px",
-                    fontWeight: 600,
-                  }}
-                >
-                  {activeConv.participants?.[0]?.display_name || "Unknown"}
-                </p>
-                <p
-                  style={{
-                    fontFamily: MONO,
-                    fontSize: "11px",
-                    color: "#504E4A",
-                  }}
-                >
-                  @{activeConv.participants?.[0]?.username || "unknown"}
-                </p>
-              </div>
-            </div>
-
-            {/* Messages */}
-            <div
-              style={{
-                flex: 1,
-                padding: "20px",
-                overflowY: "auto",
-              }}
-            >
-              {messages.map((msg) => (
-                <MessageBubble
-                  key={msg.id}
-                  message={msg}
-                  isOwn={msg.sender_id === user.id}
-                />
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Input */}
-            <div
-              style={{
-                padding: "20px",
-                borderTop: "1px solid #2A2A2A",
-                display: "flex",
-                gap: "12px",
-              }}
-            >
-              <input
-                type="text"
-                placeholder="Type a message..."
-                value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage();
-                  }
-                }}
-                style={{
-                  flex: 1,
-                  padding: "12px 16px",
-                  background: "#1A1A1A",
-                  border: "1px solid #2A2A2A",
-                  borderRadius: "24px",
-                  color: "#F0EDE8",
-                  fontFamily: SANS,
-                  fontSize: "14px",
-                  outline: "none",
-                }}
-                onFocus={(e) =>
-                  (e.target.style.borderColor = "rgba(200,169,110,0.3)")
-                }
-                onBlur={(e) => (e.target.style.borderColor = "#2A2A2A")}
-              />
-              <button
-                onClick={handleSendMessage}
-                disabled={!messageInput.trim()}
-                style={{
-                  width: "48px",
-                  height: "48px",
-                  borderRadius: "50%",
-                  background: messageInput.trim() ? "#C8A96E" : "#2A2A2A",
-                  border: "none",
-                  cursor: messageInput.trim() ? "pointer" : "not-allowed",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "#0D0D0D",
-                }}
-              >
-                <Send size={18} />
-              </button>
-            </div>
-          </>
-        ) : (
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#504E4A",
-            }}
-          >
-            <div
-              style={{
-                width: "80px",
-                height: "80px",
-                borderRadius: "50%",
-                background: "rgba(200,169,110,0.1)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: "16px",
-              }}
-            >
-              <Send size={36} style={{ color: "#C8A96E" }} />
-            </div>
-            <p
-              style={{
-                fontFamily: SERIF,
-                fontSize: "18px",
-                fontStyle: "italic",
-                marginBottom: "8px",
-              }}
-            >
-              Your Messages
-            </p>
-            <p
-              style={{
-                fontFamily: SANS,
-                fontSize: "13px",
-                maxWidth: "280px",
-                textAlign: "center",
-              }}
-            >
-              Send logs, reviews, and recommendations to your friends
-            </p>
-          </div>
-        )}
-      </div>
+      {newConvOpen && (
+        <NewConversationModal
+          onClose={() => setNewConvOpen(false)}
+          onCreated={(id) => router.push(`/messages/${id}`)}
+        />
+      )}
     </div>
   );
 }

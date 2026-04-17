@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Heart, AlertTriangle, Send, ChevronDown } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { useAuthGate } from "@/components/features/AuthGate";
 import { supabase } from "@/lib/supabase";
 
 const SANS = "Inter, system-ui, sans-serif";
@@ -320,6 +321,7 @@ export function CommunityReviews({
   titleName,
 }: CommunityReviewsProps) {
   const { user } = useAuth();
+  const { requireAuth, gate } = useAuthGate();
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -461,6 +463,9 @@ export function CommunityReviews({
 
   return (
     <div>
+      {/* Auth gate */}
+      {gate}
+
       {/* Write review form */}
       <div
         style={{
@@ -471,146 +476,168 @@ export function CommunityReviews({
           marginBottom: "24px",
         }}
       >
-        <p
-          style={{
-            fontFamily: SANS,
-            fontSize: "11px",
-            color: "#504E4A",
-            textTransform: "uppercase",
-            letterSpacing: "0.12em",
-            marginBottom: "12px",
-          }}
-        >
-          {submitted ? "✓ Review posted!" : "Write a review"}
-        </p>
+        {/* Guest prompt */}
+        {!user && !submitted && (
+          <button
+            onClick={() => requireAuth("review")}
+            style={{
+              width: "100%",
+              padding: "14px",
+              borderRadius: "8px",
+              background: "transparent",
+              border: "1px dashed #2A2A2A",
+              color: "#504E4A",
+              fontFamily: "Inter, system-ui, sans-serif",
+              fontSize: "13px",
+              cursor: "pointer",
+              textAlign: "center",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor =
+                "rgba(200,169,110,0.3)";
+              (e.currentTarget as HTMLElement).style.color = "#C8A96E";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = "#2A2A2A";
+              (e.currentTarget as HTMLElement).style.color = "#504E4A";
+            }}
+          >
+            Sign in to write a review →
+          </button>
+        )}
 
-        {!submitted && (
+        {user && (
           <>
-            {/* Star rating */}
-            <div style={{ marginBottom: "12px" }}>
-              <StarInput value={rating} onChange={setRating} />
-            </div>
-
-            {/* Name field for anon users */}
-            {!user && (
-              <input
-                value={anonName}
-                onChange={(e) => setAnonName(e.target.value)}
-                placeholder="Your name"
-                style={{
-                  width: "100%",
-                  background: "#0D0D0D",
-                  border: "1px solid #2A2A2A",
-                  borderRadius: "6px",
-                  padding: "8px 12px",
-                  color: "#F0EDE8",
-                  fontFamily: SANS,
-                  fontSize: "13px",
-                  outline: "none",
-                  marginBottom: "8px",
-                }}
-                onFocus={(e) =>
-                  (e.target.style.borderColor = "rgba(200,169,110,0.3)")
-                }
-                onBlur={(e) => (e.target.style.borderColor = "#2A2A2A")}
-              />
-            )}
-
-            {/* Review text */}
-            <div style={{ display: "flex", gap: "8px" }}>
-              <textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder={`What did you think of ${titleName.length > 24 ? titleName.slice(0, 24) + "…" : titleName}?`}
-                style={{
-                  flex: 1,
-                  background: "#0D0D0D",
-                  border: "1px solid #2A2A2A",
-                  borderRadius: "6px",
-                  padding: "10px 12px",
-                  color: "#F0EDE8",
-                  fontFamily: SANS,
-                  fontSize: "13px",
-                  resize: "none",
-                  height: "72px",
-                  outline: "none",
-                }}
-                onFocus={(e) =>
-                  (e.target.style.borderColor = "rgba(200,169,110,0.3)")
-                }
-                onBlur={(e) => (e.target.style.borderColor = "#2A2A2A")}
-              />
-              <button
-                onClick={handleSubmit}
-                disabled={submitting}
-                style={{
-                  padding: "0 14px",
-                  background: submitting ? "#8A7A5A" : "#C8A96E",
-                  border: "none",
-                  borderRadius: "6px",
-                  cursor: submitting ? "not-allowed" : "pointer",
-                  flexShrink: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Send size={14} color="#0D0D0D" />
-              </button>
-            </div>
-
-            {/* Spoiler toggle */}
-            <div
+            <p
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                marginTop: "8px",
+                fontFamily: SANS,
+                fontSize: "11px",
+                color: "#504E4A",
+                textTransform: "uppercase",
+                letterSpacing: "0.12em",
+                marginBottom: "12px",
               }}
             >
-              <button
-                onClick={() => setIsSpoiler(!isSpoiler)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "5px",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 0,
-                  fontFamily: SANS,
-                  fontSize: "11px",
-                  color: isSpoiler ? "#C87C2A" : "#504E4A",
-                }}
-              >
-                <AlertTriangle size={11} />
-                {isSpoiler ? "Spoiler marked" : "Mark as spoiler"}
-              </button>
-              {!user && (
-                <span
+              {submitted ? "✓ Review posted!" : "Write a review"}
+            </p>
+
+            {!submitted && (
+              <>
+                {/* Star rating */}
+                <div style={{ marginBottom: "12px" }}>
+                  <StarInput value={rating} onChange={setRating} />
+                </div>
+
+                {/* Name field for anon users */}
+                {!user && (
+                  <input
+                    value={anonName}
+                    onChange={(e) => setAnonName(e.target.value)}
+                    placeholder="Your name"
+                    style={{
+                      width: "100%",
+                      background: "#0D0D0D",
+                      border: "1px solid #2A2A2A",
+                      borderRadius: "6px",
+                      padding: "8px 12px",
+                      color: "#F0EDE8",
+                      fontFamily: SANS,
+                      fontSize: "13px",
+                      outline: "none",
+                      marginBottom: "8px",
+                    }}
+                    onFocus={(e) =>
+                      (e.target.style.borderColor = "rgba(200,169,110,0.3)")
+                    }
+                    onBlur={(e) => (e.target.style.borderColor = "#2A2A2A")}
+                  />
+                )}
+
+                {/* Review text */}
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <textarea
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder={`What did you think of ${titleName.length > 24 ? titleName.slice(0, 24) + "…" : titleName}?`}
+                    style={{
+                      flex: 1,
+                      background: "#0D0D0D",
+                      border: "1px solid #2A2A2A",
+                      borderRadius: "6px",
+                      padding: "10px 12px",
+                      color: "#F0EDE8",
+                      fontFamily: SANS,
+                      fontSize: "13px",
+                      resize: "none",
+                      height: "72px",
+                      outline: "none",
+                    }}
+                    onFocus={(e) =>
+                      (e.target.style.borderColor = "rgba(200,169,110,0.3)")
+                    }
+                    onBlur={(e) => (e.target.style.borderColor = "#2A2A2A")}
+                  />
+                  <button
+                    onClick={handleSubmit}
+                    disabled={submitting}
+                    style={{
+                      padding: "0 14px",
+                      background: submitting ? "#8A7A5A" : "#C8A96E",
+                      border: "none",
+                      borderRadius: "6px",
+                      cursor: submitting ? "not-allowed" : "pointer",
+                      flexShrink: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Send size={14} color="#0D0D0D" />
+                  </button>
+                </div>
+
+                {/* Spoiler toggle */}
+                <div
                   style={{
-                    fontFamily: SANS,
-                    fontSize: "10px",
-                    color: "#2A2A2A",
-                    marginLeft: "auto",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    marginTop: "8px",
                   }}
                 >
-                  Sign in to save reviews to your profile
-                </span>
-              )}
-            </div>
+                  <button
+                    onClick={() => setIsSpoiler(!isSpoiler)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "5px",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: 0,
+                      fontFamily: SANS,
+                      fontSize: "11px",
+                      color: isSpoiler ? "#C87C2A" : "#504E4A",
+                    }}
+                  >
+                    <AlertTriangle size={11} />
+                    {isSpoiler ? "Spoiler marked" : "Mark as spoiler"}
+                  </button>
+                </div>
 
-            {formError && (
-              <p
-                style={{
-                  fontFamily: SANS,
-                  fontSize: "11px",
-                  color: "#C87C2A",
-                  marginTop: "6px",
-                }}
-              >
-                {formError}
-              </p>
+                {formError && (
+                  <p
+                    style={{
+                      fontFamily: SANS,
+                      fontSize: "11px",
+                      color: "#C87C2A",
+                      marginTop: "6px",
+                    }}
+                  >
+                    {formError}
+                  </p>
+                )}
+              </>
             )}
           </>
         )}
