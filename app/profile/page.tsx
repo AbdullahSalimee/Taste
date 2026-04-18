@@ -25,6 +25,8 @@ import { useLogs, useWatchlist, useStats, useUserProfile } from "@/lib/hooks";
 import { saveUserProfile, removeLog } from "@/lib/store";
 import { TasteDNACard } from "@/components/features/TasteDNACard";
 import { getMyTwins } from "@/lib/twins";
+import { FollowButton, FollowStats } from "@/components/features/FollowButton";
+import { WrappedButton } from "@/components/features/TasteWrapped";
 
 const SERIF = "Playfair Display, Georgia, serif";
 const SANS = "Inter, system-ui, sans-serif";
@@ -125,7 +127,6 @@ function StatPill({ val, label }: { val: string | number; label: string }) {
   );
 }
 
-// Radar chart for genre distribution
 function GenreRadar({ genres }: { genres: { name: string; pct: number }[] }) {
   if (!genres.length) return null;
   const cx = 100,
@@ -133,7 +134,6 @@ function GenreRadar({ genres }: { genres: { name: string; pct: number }[] }) {
     r = 70;
   const n = Math.min(genres.length, 6);
   const top = genres.slice(0, n);
-
   const points = top.map((g, i) => {
     const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
     const radius = (g.pct / 100) * r;
@@ -144,13 +144,11 @@ function GenreRadar({ genres }: { genres: { name: string; pct: number }[] }) {
       angle,
     };
   });
-
   const polygon = points.map((p) => `${p.x},${p.y}`).join(" ");
   const spokes = top.map((_, i) => {
     const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
     return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
   });
-
   return (
     <svg
       viewBox="0 0 200 200"
@@ -161,7 +159,6 @@ function GenreRadar({ genres }: { genres: { name: string; pct: number }[] }) {
         display: "block",
       }}
     >
-      {/* Grid circles */}
       {[0.25, 0.5, 0.75, 1].map((f) => (
         <circle
           key={f}
@@ -173,7 +170,6 @@ function GenreRadar({ genres }: { genres: { name: string; pct: number }[] }) {
           strokeWidth="1"
         />
       ))}
-      {/* Spokes */}
       {spokes.map((s, i) => (
         <line
           key={i}
@@ -185,14 +181,12 @@ function GenreRadar({ genres }: { genres: { name: string; pct: number }[] }) {
           strokeWidth="1"
         />
       ))}
-      {/* Data polygon */}
       <polygon
         points={polygon}
         fill="rgba(200,169,110,0.15)"
         stroke="#C8A96E"
         strokeWidth="1.5"
       />
-      {/* Labels */}
       {points.map((p, i) => {
         const labelR = r + 16;
         const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
@@ -221,7 +215,6 @@ function GenreRadar({ genres }: { genres: { name: string; pct: number }[] }) {
   );
 }
 
-// Film grid
 function FilmGrid({
   logs,
   mediaType,
@@ -292,7 +285,6 @@ function FilmGrid({
                   <Film size={14} color="#2A2A2A" />
                 </div>
               )}
-              {/* Rating overlay */}
               {log.user_rating && (
                 <div
                   className="card-overlay"
@@ -309,7 +301,6 @@ function FilmGrid({
                   </span>
                 </div>
               )}
-              {/* Status dot */}
               <div
                 style={{
                   position: "absolute",
@@ -346,7 +337,6 @@ function FilmGrid({
   );
 }
 
-// Year-by-year activity chart
 function ActivityChart({ logs }: { logs: any[] }) {
   if (!logs.length) return null;
   const byYear: Record<number, number> = {};
@@ -357,7 +347,6 @@ function ActivityChart({ logs }: { logs: any[] }) {
   const years = Object.keys(byYear).map(Number).sort();
   const max = Math.max(...Object.values(byYear));
   if (years.length < 2) return null;
-
   return (
     <div>
       <p
@@ -418,7 +407,6 @@ function ActivityChart({ logs }: { logs: any[] }) {
   );
 }
 
-// Bio editor
 function BioEditor({
   bio,
   onSave,
@@ -608,10 +596,6 @@ export default function ProfilePage() {
     });
   }
 
-  function handleBioSave(bio: string) {
-    saveUserProfile({ bio });
-  }
-
   const TABS = [
     { id: "overview", label: "Overview" },
     { id: "films", label: `Films (${films.length})` },
@@ -635,7 +619,6 @@ export default function ProfilePage() {
           }}
         >
           <Avatar name={displayName} size={72} />
-
           <div style={{ flex: 1, minWidth: 0 }}>
             <div
               style={{
@@ -695,8 +678,25 @@ export default function ProfilePage() {
             </div>
 
             {/* Bio */}
-            <div style={{ marginBottom: "16px", maxWidth: "480px" }}>
-              <BioEditor bio={profile.bio} onSave={handleBioSave} />
+            <div style={{ marginBottom: "12px", maxWidth: "480px" }}>
+              <BioEditor
+                bio={profile.bio}
+                onSave={(bio) => saveUserProfile({ bio })}
+              />
+            </div>
+
+            {/* Follow stats + Follow button row */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "16px",
+                marginBottom: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              <FollowStats userId={user.id} />
+              <FollowButton targetUserId={user.id} />
             </div>
 
             {/* Stats row */}
@@ -760,9 +760,8 @@ export default function ProfilePage() {
           }}
           className="profile-grid"
         >
-          {/* Left — recent activity */}
           <div>
-            {/* Recent watched */}
+            {/* Recently watched */}
             {watched.length > 0 && (
               <div style={{ marginBottom: "28px" }}>
                 <p
@@ -986,20 +985,36 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {/* Taste DNA */}
+            {/* Wrapped button + Taste DNA */}
             <div style={{ marginBottom: "28px" }}>
-              <p
+              <div
                 style={{
-                  fontFamily: SANS,
-                  fontSize: "10px",
-                  color: "#504E4A",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.12em",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
                   marginBottom: "12px",
                 }}
               >
-                Taste DNA
-              </p>
+                <p
+                  style={{
+                    fontFamily: SANS,
+                    fontSize: "10px",
+                    color: "#504E4A",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.12em",
+                  }}
+                >
+                  Taste DNA
+                </p>
+                <WrappedButton
+                  logs={logs}
+                  archetype={profile.archetype || "Cinematic Explorer"}
+                  archetypeDesc={
+                    profile.archetype_desc ||
+                    "Your taste spans eras and genres."
+                  }
+                />
+              </div>
               <TasteDNACard />
             </div>
           </div>
@@ -1008,7 +1023,6 @@ export default function ProfilePage() {
           <div
             style={{ display: "flex", flexDirection: "column", gap: "24px" }}
           >
-            {/* Genre radar */}
             {stats.top_genres.length >= 3 && (
               <div>
                 <p
@@ -1074,11 +1088,7 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
-
-            {/* Activity by year */}
             <ActivityChart logs={logs} />
-
-            {/* Top directors */}
             {stats.top_directors.length > 0 && (
               <div>
                 <p
@@ -1132,7 +1142,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* ── Taste Twins ── */}
+      {/* Taste Twins */}
       {tab === "overview" && (
         <div
           style={{
@@ -1197,45 +1207,41 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* ── Films tab ── */}
+      {/* Films tab */}
       {tab === "films" && (
         <div>
-          <div
+          <p
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
+              fontFamily: SANS,
+              fontSize: "12px",
+              color: "#504E4A",
               marginBottom: "16px",
             }}
           >
-            <p style={{ fontFamily: SANS, fontSize: "12px", color: "#504E4A" }}>
-              {films.length} films logged
-            </p>
-          </div>
+            {films.length} films logged
+          </p>
           <FilmGrid logs={logs} mediaType="film" />
         </div>
       )}
 
-      {/* ── TV tab ── */}
+      {/* TV tab */}
       {tab === "tv" && (
         <div>
-          <div
+          <p
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
+              fontFamily: SANS,
+              fontSize: "12px",
+              color: "#504E4A",
               marginBottom: "16px",
             }}
           >
-            <p style={{ fontFamily: SANS, fontSize: "12px", color: "#504E4A" }}>
-              {series.length} series logged
-            </p>
-          </div>
+            {series.length} series logged
+          </p>
           <FilmGrid logs={logs} mediaType="series" />
         </div>
       )}
 
-      {/* ── Watchlist tab ── */}
+      {/* Watchlist tab */}
       {tab === "watchlist" && (
         <div>
           {watchlist.length === 0 ? (
@@ -1351,7 +1357,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* ── Stats tab ── */}
+      {/* Stats tab */}
       {tab === "stats" && (
         <div
           style={{
@@ -1361,11 +1367,9 @@ export default function ProfilePage() {
           }}
           className="stats-grid"
         >
-          {/* Left */}
           <div
             style={{ display: "flex", flexDirection: "column", gap: "20px" }}
           >
-            {/* Overview numbers */}
             <div>
               <p
                 style={{
@@ -1429,8 +1433,6 @@ export default function ProfilePage() {
                 ))}
               </div>
             </div>
-
-            {/* Rating distribution */}
             {ratedLogs.length > 0 && (
               <div>
                 <p
@@ -1508,12 +1510,9 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
-
-          {/* Right */}
           <div
             style={{ display: "flex", flexDirection: "column", gap: "20px" }}
           >
-            {/* Genre breakdown */}
             {stats.top_genres.length > 0 && (
               <div>
                 <p
@@ -1584,11 +1583,7 @@ export default function ProfilePage() {
                 ))}
               </div>
             )}
-
-            {/* Activity chart */}
             <ActivityChart logs={logs} />
-
-            {/* Top directors */}
             {stats.top_directors.length > 0 && (
               <div>
                 <p

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { MessageCircle, Search, Plus, Users, X, Check } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
+import { FollowButton } from "@/components/features/FollowButton";
 
 const SANS = "Inter, system-ui, sans-serif";
 const MONO = "JetBrains Mono, Courier New, monospace";
@@ -162,7 +163,6 @@ function NewConversationModal({
         }}
       >
         <style>{`@keyframes modalIn{from{opacity:0;transform:translate(-50%,-48%) scale(0.95)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}`}</style>
-        {/* Modal header */}
         <div
           style={{
             padding: "20px 20px 16px",
@@ -200,7 +200,6 @@ function NewConversationModal({
             <X size={14} />
           </button>
         </div>
-        {/* Search */}
         <div style={{ padding: "12px 20px 0" }}>
           <div style={{ position: "relative" }}>
             <Search
@@ -232,7 +231,6 @@ function NewConversationModal({
             />
           </div>
         </div>
-        {/* Results */}
         <div
           style={{
             padding: "8px 12px 12px",
@@ -257,7 +255,6 @@ function NewConversationModal({
           {users.map((u) => (
             <div
               key={u.id}
-              onClick={() => startConversation(u.id)}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -274,32 +271,44 @@ function NewConversationModal({
                 (e.currentTarget.style.background = "transparent")
               }
             >
-              <Avatar name={u.username || u.display_name} size={40} />
-              <div>
-                <p
-                  style={{
-                    fontFamily: SANS,
-                    fontSize: "14px",
-                    color: "#F0EDE8",
-                    fontWeight: 500,
-                  }}
-                >
-                  {u.username || u.display_name}
-                </p>
-                {u.username &&
-                  u.display_name &&
-                  u.username !== u.display_name && (
-                    <p
-                      style={{
-                        fontFamily: SANS,
-                        fontSize: "12px",
-                        color: "#504E4A",
-                      }}
-                    >
-                      {u.display_name}
-                    </p>
-                  )}
+              <div
+                onClick={() => startConversation(u.id)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  flex: 1,
+                }}
+              >
+                <Avatar name={u.username || u.display_name} size={40} />
+                <div>
+                  <p
+                    style={{
+                      fontFamily: SANS,
+                      fontSize: "14px",
+                      color: "#F0EDE8",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {u.username || u.display_name}
+                  </p>
+                  {u.username &&
+                    u.display_name &&
+                    u.username !== u.display_name && (
+                      <p
+                        style={{
+                          fontFamily: SANS,
+                          fontSize: "12px",
+                          color: "#504E4A",
+                        }}
+                      >
+                        {u.display_name}
+                      </p>
+                    )}
+                </div>
               </div>
+              {/* Follow button next to each user */}
+              <FollowButton targetUserId={u.id} size="sm" />
             </div>
           ))}
           {search.trim().length >= 2 && !loading && users.length === 0 && (
@@ -406,7 +415,6 @@ export default function MessagesPage() {
     <div
       style={{ maxWidth: "680px", margin: "0 auto", padding: "24px 20px 80px" }}
     >
-      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -459,7 +467,6 @@ export default function MessagesPage() {
         </button>
       </div>
 
-      {/* Search bar */}
       {conversations.length > 2 && (
         <div style={{ position: "relative", marginBottom: "16px" }}>
           <Search
@@ -491,7 +498,6 @@ export default function MessagesPage() {
         </div>
       )}
 
-      {/* Conversation list */}
       {loading ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           {Array.from({ length: 5 }).map((_, i) => (

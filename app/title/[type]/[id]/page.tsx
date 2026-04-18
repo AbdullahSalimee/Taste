@@ -4,6 +4,8 @@ import { useAuthGate } from "@/components/features/AuthGate";
 import { useAuth } from "@/lib/auth-context";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { SendToFriend } from "@/components/features/SendToFriend";
+
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -979,6 +981,7 @@ export default function TitleDetailPage() {
   const [onWatchlist, setOnWatchlist] = useState(false);
   const [userRating, setUserRatingState] = useState<number>(0);
   const [overviewExpanded, setOverviewExpanded] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState<"info" | "heatmap" | "reviews">(
     "info",
@@ -1499,6 +1502,49 @@ export default function TitleDetailPage() {
               )}
               {onWatchlist ? "Saved" : "Watchlist"}
             </button>
+
+            <button
+              onClick={() => setSendOpen(true)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "7px",
+                padding: "10px 16px",
+                borderRadius: "8px",
+                background: "transparent",
+                border: "1px solid #2A2A2A",
+                color: "#8A8780",
+                fontFamily: SANS,
+                fontSize: "13px",
+                cursor: "pointer",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "rgba(200,169,110,0.3)";
+                e.currentTarget.style.color = "#C8A96E";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "#2A2A2A";
+                e.currentTarget.style.color = "#8A8780";
+              }}
+            >
+              <Send size={14} /> Send
+            </button>
+
+            {sendOpen && data && (
+              <SendToFriend
+                mode="title"
+                titleData={{
+                  tmdb_id: data.tmdb_id,
+                  media_type: data.media_type,
+                  title: data.title,
+                  poster_url: data.poster_url,
+                  year: data.year,
+                  tmdb_rating_5: data.tmdb_rating_5 ?? rating5,
+                  overview: data.overview,
+                }}
+                onClose={() => setSendOpen(false)}
+              />
+            )}
 
             {/* User quick-rate — only for signed in users */}
             {user && !logged && (
