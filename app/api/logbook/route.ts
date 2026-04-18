@@ -38,12 +38,11 @@ export async function GET(request: NextRequest) {
   }
 
   // Get user's profile to find their ID
-  const { data: profile } = await db
-    .from("profiles")
-    .select("id")
-    .eq("auth_id", user.id)
-    .single();
-
+const { data: profile } = await db
+  .from("profiles")
+  .select("id")
+  .eq("id", user.id) // ✅ profiles.id IS the auth user id
+  .single();
   if (!profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
@@ -55,7 +54,7 @@ export async function GET(request: NextRequest) {
       `
       id, status, watched_at, note, rewatch, rewatch_count,
       titles ( tmdb_id, media_type, title, poster_path, year ),
-      episodes ( title, season_number, episode_number )
+      episodes ( name, season_number, episode_number )
     `,
     )
     .eq("user_id", profile.id)
@@ -93,7 +92,7 @@ export async function GET(request: NextRequest) {
         ? `${TMDB_IMG}/w185${title.poster_path}`
         : null,
       episode_title: episode
-        ? `S${episode.season_number}E${episode.episode_number}: ${episode.title}`
+        ? `S${episode.season_number}E${episode.episode_number}: ${episode.name}`
         : null,
     };
   });

@@ -13,6 +13,7 @@ import {
   Calendar,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/lib/supabase";
 
 const SERIF = "Playfair Display, Georgia, serif";
 const SANS = "Inter, system-ui, sans-serif";
@@ -321,7 +322,15 @@ export default function LogbookPage() {
       const params = new URLSearchParams({ page: p.toString() });
       if (statusFilter !== "all") params.set("status", statusFilter);
 
-      const res = await fetch(`/api/logbook?${params}`);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const res = await fetch(`/api/logbook?${params}`, {
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
       const data = await res.json();
       const fetched = data.logs || [];
       if (append) setItems((prev) => [...prev, ...fetched]);

@@ -10,6 +10,7 @@ import {
   Loader2,
   TrendingUp,
 } from "lucide-react";
+import { StoriesBar } from "@/components/features/StoriesBar";
 
 const SERIF = "Playfair Display, Georgia, serif";
 const SANS = "Inter, system-ui, sans-serif";
@@ -89,11 +90,8 @@ function ActivityItem({ item }: { item: any }) {
       onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#1A1A1A")}
     >
       <div style={{ display: "flex", gap: "12px" }}>
-        {/* Avatar */}
         <Avatar name={item.author} size={32} />
-
         <div style={{ flex: 1, minWidth: 0 }}>
-          {/* Header */}
           <div
             style={{
               display: "flex",
@@ -151,8 +149,6 @@ function ActivityItem({ item }: { item: any }) {
               {timeAgo(item.date)}
             </span>
           </div>
-
-          {/* Rating */}
           {item.rating && (
             <div
               style={{
@@ -170,8 +166,6 @@ function ActivityItem({ item }: { item: any }) {
               </span>
             </div>
           )}
-
-          {/* Review body */}
           {item.body && (
             <p
               style={
@@ -192,8 +186,6 @@ function ActivityItem({ item }: { item: any }) {
             </p>
           )}
         </div>
-
-        {/* Poster */}
         {item.poster_url && (
           <div
             onClick={() => router.push(`/title/${mt}/${item.tmdb_id}`)}
@@ -286,7 +278,7 @@ export default function ActivityPage() {
       style={{ maxWidth: "680px", margin: "0 auto", padding: "24px 20px 80px" }}
     >
       {/* Header */}
-      <div style={{ marginBottom: "24px" }}>
+      <div style={{ marginBottom: "20px" }}>
         <div
           style={{
             display: "flex",
@@ -312,6 +304,14 @@ export default function ActivityPage() {
           What people are watching and reviewing right now
         </p>
       </div>
+
+      {/* ── Stories Bar ── */}
+      <div style={{ marginBottom: "20px" }}>
+        <StoriesBar />
+      </div>
+      <div
+        style={{ borderBottom: "1px solid #1A1A1A", marginBottom: "20px" }}
+      />
 
       {/* Feed */}
       {loading ? (
@@ -382,7 +382,6 @@ export default function ActivityPage() {
           </div>
         </>
       )}
-
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );

@@ -340,64 +340,73 @@ export default function AuthPage() {
     }
   }
 
- async function handleSubmit(e: React.FormEvent) {
-   e.preventDefault();
-   setError("");
-   if (!validate()) return;
-   setLoading(true);
+async function handleSubmit(e: React.FormEvent) {
+  e.preventDefault();
+  setError("");
+  if (!validate()) return;
+  setLoading(true);
 
-   try {
-     if (mode === "signin") {
-       const { error: err } = await supabase.auth.signInWithPassword({
-         email,
-         password,
-       });
-       if (err) throw err;
-       router.push("/dashboard");
-     } else {
-       // Check username availability BEFORE creating the auth user
-       const { data: existing } = await supabase
-         .from("profiles")
-         .select("username")
-         .eq("username", username.toLowerCase())
-         .maybeSingle();
+  try {
+    if (mode === "signin") {
+      const { error: err } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (err) throw err;
+      router.push("/dashboard");
+    } else {
+      // Check username availability BEFORE creating the auth user
+      const { data: existing } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("username", username.toLowerCase())
+        .maybeSingle();
 
-       if (existing) {
-         setError("That username is already taken. Try another one.");
-         setLoading(false);
-         return;
-       }
+      if (existing) {
+        setError("That username is already taken. Try another one.");
+        setLoading(false);
+        return;
+      }
 
-       // Only reaches here if username is free
-       const { error: err } = await supabase.auth.signUp({
-         email,
-         password,
-         options: {
-           data: { username: username.toLowerCase() },
-           emailRedirectTo: `${window.location.origin}/dashboard`,
-         },
-       });
-       if (err) throw err;
-       setVerificationSent(true);
-     }
-   } catch (err: any) {
-     const msg = err.message || "";
-     if (msg.includes("Invalid login")) setError("Wrong email or password.");
-     else if (msg.includes("already registered"))
-       setError("This email is already registered. Sign in instead.");
-     else if (msg.includes("Email not confirmed"))
-       setError("Please verify your email first — check your inbox.");
-     else if (
-       msg.includes("duplicate") ||
-       msg.includes("unique") ||
-       msg.includes("username")
-     )
-       setError("That username is already taken. Try another one.");
-     else setError(msg || "Something went wrong. Try again.");
-   } finally {
-     setLoading(false);
-   }
- }
+      const { data, error: err } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { username: username.toLowerCase() },
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
+
+      if (err) throw err;
+
+      // Supabase doesn't error on duplicate email when confirmation is on —
+      // it silently resends. Empty identities array = email already exists.
+      if (data.user?.identities?.length === 0) {
+        setError("This email is already registered. Sign in instead.");
+        setLoading(false);
+        return;
+      }
+
+      setVerificationSent(true);
+    }
+  } catch (err: any) {
+    const msg = err.message || "";
+    if (msg.includes("Invalid login")) setError("Wrong email or password.");
+    else if (msg.includes("already registered"))
+      setError("This email is already registered. Sign in instead.");
+    else if (msg.includes("Email not confirmed"))
+      setError("Please verify your email first — check your inbox.");
+    else if (
+      msg.includes("duplicate") ||
+      msg.includes("unique") ||
+      msg.includes("username")
+    )
+      setError("That username is already taken. Try another one.");
+    else setError(msg || "Something went wrong. Try again.");
+  } finally {
+    setLoading(false);
+  }
+}
   return (
     <div
       style={{
