@@ -155,9 +155,15 @@ export function SendToFriend({
       };
     } else if (mode === "dna" && dnaData) {
       body = {
-        content: `My Taste DNA: ${dnaData.archetype}`,
-        content_type: "text",
-        metadata: dnaData,
+        content: `Shared Taste DNA: ${dnaData.archetype}`,
+        content_type: "dna_share",
+        metadata: {
+          archetype: dnaData.archetype,
+          archetype_desc: dnaData.archetype_desc,
+          top_genres: dnaData.top_genres || [],
+          total_films: dnaData.total_films || 0,
+          total_series: dnaData.total_series || 0,
+        },
       };
     }
 

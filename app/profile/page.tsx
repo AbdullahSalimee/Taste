@@ -1006,14 +1006,7 @@ export default function ProfilePage() {
                 >
                   Taste DNA
                 </p>
-                <WrappedButton
-                  logs={logs}
-                  archetype={profile.archetype || "Cinematic Explorer"}
-                  archetypeDesc={
-                    profile.archetype_desc ||
-                    "Your taste spans eras and genres."
-                  }
-                />
+                <WrappedButton logs={logs} />
               </div>
               <TasteDNACard />
             </div>

@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
-import { Share2, Download, RefreshCw, Send } from "lucide-react";
+import { useState } from "react";
+import { Share2, Send } from "lucide-react";
 import { useStats, useUserProfile } from "@/lib/hooks";
 import { SendToFriend } from "@/components/features/SendToFriend";
 
@@ -27,6 +27,126 @@ const GENRE_COLORS: Record<string, string> = {
   War: "#5A4A3A",
 };
 
+// ── Compute archetype from real user data, no AI ──────────────────────────────
+
+function computeArchetype(params: {
+  topGenre: string;
+  topGenrePct: number;
+  secondGenre: string | null;
+  topDirector: string | null;
+  totalFilms: number;
+  avgRating: number;
+}): { archetype: string; archetype_desc: string } {
+  const {
+    topGenre,
+    topGenrePct,
+    secondGenre,
+    topDirector,
+    totalFilms,
+    avgRating,
+  } = params;
+
+  // Not enough data yet
+  if (!topGenre || totalFilms < 3) {
+    return {
+      archetype: "The Emerging Cinephile",
+      archetype_desc: "Log a few more films — your identity is taking shape.",
+    };
+  }
+
+  // ── Title ──────────────────────────────────────────────────────────────────
+
+  let archetype: string;
+
+  if (topGenrePct >= 55) {
+    const single: Record<string, string> = {
+      Drama: "The Drama Purist",
+      Thriller: "The Tension Seeker",
+      Documentary: "The Truth Chaser",
+      "Sci-Fi": "The Sci-Fi Completionist",
+      "Science Fiction": "The Sci-Fi Completionist",
+      Comedy: "The Comedy Loyalist",
+      Romance: "The Romance Devotee",
+      Horror: "The Horror Obsessive",
+      Animation: "The Animation Archivist",
+      Action: "The Action Regular",
+      Crime: "The Crime Genre Regular",
+      History: "The Historical Record",
+      Mystery: "The Mystery Devotee",
+      Adventure: "The Adventure Completionist",
+      Fantasy: "The Fantasy Loyalist",
+      War: "The War Cinema Devotee",
+    };
+    archetype = single[topGenre] ?? `The ${topGenre} Purist`;
+  } else if (secondGenre) {
+    const key = [topGenre, secondGenre].sort().join("+");
+    const combos: Record<string, string> = {
+      "Drama+Thriller": "The Dark Drama Specialist",
+      "Crime+Drama": "The Crime Drama Regular",
+      "Drama+History": "The Period Drama Collector",
+      "Drama+Romance": "The Emotional Cinema Devotee",
+      "Horror+Thriller": "The Dread Merchant",
+      "Sci-Fi+Thriller": "The Paranoid Futurist",
+      "Action+Crime": "The Genre Pragmatist",
+      "Comedy+Drama": "The Dramedy Curator",
+      "Documentary+Drama": "The Reality-Adjacent Viewer",
+      "Drama+Mystery": "The Slow Burn Collector",
+      "Horror+Mystery": "The Unease Collector",
+      "Action+Thriller": "The High-Stakes Regular",
+    };
+    archetype = combos[key] ?? `The ${topGenre}–${secondGenre} Viewer`;
+  } else {
+    archetype =
+      totalFilms >= 200
+        ? "The Dedicated Archivist"
+        : totalFilms >= 50
+          ? "The Steady Collector"
+          : "The Emerging Cinephile";
+  }
+
+  // ── Description ───────────────────────────────────────────────────────────
+
+  const ratingNote =
+    avgRating >= 8.0
+      ? "You rate generously — most films earn their keep."
+      : avgRating >= 7.0
+        ? "Your ratings run high; disappointment is rare."
+        : avgRating >= 5.5
+          ? "You hold a critical line — a 7 from you means something."
+          : avgRating > 0
+            ? "You're a tough critic — your stars are hard-won."
+            : "";
+
+  const directorNote = topDirector
+    ? `${topDirector} is your most-watched director.`
+    : "";
+
+  let archetype_desc: string;
+
+  if (topGenrePct >= 55 && directorNote) {
+    archetype_desc =
+      `${topGenrePct}% of your log is ${topGenre}. ${directorNote} ${ratingNote}`.trim();
+  } else if (topGenrePct >= 55) {
+    archetype_desc =
+      `${topGenrePct}% ${topGenre} — a focused log with a clear centre of gravity. ${ratingNote}`.trim();
+  } else if (secondGenre && directorNote) {
+    archetype_desc =
+      `${topGenre} and ${secondGenre} split your attention. ${directorNote} ${ratingNote}`.trim();
+  } else if (secondGenre) {
+    archetype_desc =
+      `${topGenre} (${topGenrePct}%) and ${secondGenre} define your watching. ${ratingNote}`.trim();
+  } else if (totalFilms >= 200) {
+    archetype_desc =
+      `${totalFilms} films logged — breadth over depth, no single genre claiming you. ${ratingNote}`.trim();
+  } else {
+    archetype_desc = ratingNote || "Your log is taking shape — keep watching.";
+  }
+
+  return { archetype, archetype_desc };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface TasteDNACardProps {
   compact?: boolean;
 }
@@ -35,49 +155,19 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
   const stats = useStats();
   const profile = useUserProfile();
   const [shared, setShared] = useState(false);
-  const [generating, setGenerating] = useState(false);
   const [sendDnaOpen, setSendDnaOpen] = useState(false);
-  const [aiData, setAiData] = useState<{
-    archetype: string;
-    archetype_desc: string;
-    insights: string[];
-  } | null>(null);
 
-  const archetype =
-    aiData?.archetype || profile.archetype || "Cinematic Explorer";
-  const archetypeDesc =
-    aiData?.archetype_desc ||
-    profile.archetype_desc ||
-    "Your taste spans eras and genres.";
-
-  useEffect(() => {
-    if (stats.total_films >= 3 && !aiData && !generating) generateDNA();
-  }, [stats.total_films]);
-
-  async function generateDNA() {
-    setGenerating(true);
-    try {
-      const res = await fetch("/api/taste-dna", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          genres: stats.top_genres,
-          directors: stats.top_directors,
-          decades: [],
-          ratings: [],
-        }),
-      });
-      const data = await res.json();
-      setAiData(data);
-    } catch (err) {
-      console.error("DNA generation failed", err);
-    } finally {
-      setGenerating(false);
-    }
-  }
+  const { archetype, archetype_desc } = computeArchetype({
+    topGenre: stats.top_genres[0]?.name ?? "",
+    topGenrePct: stats.top_genres[0]?.pct ?? 0,
+    secondGenre: stats.top_genres[1]?.name ?? null,
+    topDirector: stats.top_directors[0] ?? null,
+    totalFilms: stats.total_films,
+    avgRating: stats.avg_rating ?? 0,
+  });
 
   const handleShare = () => {
-    const text = `My cinema identity on Taste: "${archetype}" — ${archetypeDesc}`;
+    const text = `My cinema identity on Taste: "${archetype}" — ${archetype_desc}`;
     navigator.clipboard.writeText(text).catch(() => {});
     setShared(true);
     setTimeout(() => setShared(false), 2000);
@@ -140,7 +230,7 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
                   lineHeight: 1.2,
                 }}
               >
-                {generating ? "Analyzing..." : archetype}
+                {archetype}
               </h3>
               <p
                 style={{
@@ -151,7 +241,7 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
                   fontStyle: "italic",
                 }}
               >
-                {archetypeDesc}
+                {archetype_desc}
               </p>
             </div>
             <div
@@ -246,7 +336,7 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
             mode="dna"
             dnaData={{
               archetype,
-              archetype_desc: archetypeDesc,
+              archetype_desc,
               top_genres: stats.top_genres,
               total_films: stats.total_films,
               total_series: stats.total_series,
@@ -335,7 +425,7 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
                   lineHeight: 1.2,
                 }}
               >
-                {generating ? "Analyzing taste..." : archetype}
+                {archetype}
               </h2>
               <p
                 style={{
@@ -345,9 +435,10 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
                   marginTop: "8px",
                   fontStyle: "italic",
                   lineHeight: 1.5,
+                  maxWidth: "360px",
                 }}
               >
-                {archetypeDesc}
+                {archetype_desc}
               </p>
             </div>
             <div
@@ -366,18 +457,6 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
               <button onClick={() => setSendDnaOpen(true)} style={buttonStyle}>
                 <Send size={12} />
                 Send
-              </button>
-              <button
-                onClick={generateDNA}
-                disabled={generating}
-                style={{
-                  ...buttonStyle,
-                  opacity: generating ? 0.5 : 1,
-                  cursor: generating ? "default" : "pointer",
-                }}
-              >
-                <RefreshCw size={12} />
-                Refresh
               </button>
             </div>
           </div>
@@ -458,46 +537,10 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
             </div>
           )}
 
-          {stats.top_directors.length > 0 && (
-            <div
-              style={{
-                paddingTop: "16px",
-                borderTop: "1px solid #1A1A1A",
-                marginBottom: "16px",
-              }}
-            >
-              <p
-                style={{
-                  fontFamily: SANS,
-                  fontSize: "9px",
-                  color: "#504E4A",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.15em",
-                  marginBottom: "8px",
-                }}
-              >
-                Directors
-              </p>
-              <div
-                style={{ display: "flex", flexWrap: "wrap", gap: "8px 12px" }}
-              >
-                {stats.top_directors.map((d) => (
-                  <span
-                    key={d}
-                    style={{
-                      fontFamily: SANS,
-                      fontSize: "11px",
-                      color: "#8A8780",
-                    }}
-                  >
-                    {d}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+      
 
           <div
+            className="justify-center items-center"
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr 1fr",
@@ -511,8 +554,11 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
               { val: stats.total_series, label: "Series" },
               { val: `${stats.total_hours}h`, label: "Watched" },
             ].map(({ val, label }) => (
-              <div key={label}>
+              <div
+              className="flex flex-col items-center"
+                key={label}>
                 <p
+                  className="w-fit"
                   style={{
                     fontFamily: MONO,
                     color: "#C8A96E",
@@ -580,7 +626,7 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
           mode="dna"
           dnaData={{
             archetype,
-            archetype_desc: archetypeDesc,
+            archetype_desc,
             top_genres: stats.top_genres,
             total_films: stats.total_films,
             total_series: stats.total_series,

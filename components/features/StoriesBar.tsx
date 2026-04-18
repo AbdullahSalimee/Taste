@@ -347,62 +347,253 @@ function StoryViewer({
             </div>
           )}
 
-          {/* DNA story */}
+          {/* DNA story — full-height cinematic card */}
           {story.type === "dna" && (
             <div
               style={{
                 flex: 1,
+                position: "relative",
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "24px",
-                gap: "12px",
+                background:
+                  "linear-gradient(160deg, #0A0A0A 0%, #111111 40%, #0D0A06 100%)",
+                overflow: "hidden",
               }}
             >
+              {/* Ambient glow */}
               <div
                 style={{
-                  padding: "20px",
-                  background: "linear-gradient(135deg, #141414, #0D0D0D)",
-                  border: "1px solid rgba(200,169,110,0.3)",
-                  borderRadius: "12px",
-                  width: "100%",
+                  position: "absolute",
+                  top: "30%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  width: "300px",
+                  height: "300px",
+                  borderRadius: "50%",
+                  background:
+                    "radial-gradient(circle, rgba(200,169,110,0.12) 0%, transparent 70%)",
+                  pointerEvents: "none",
+                }}
+              />
+
+              {/* Film strip top */}
+              <div
+                style={{
+                  display: "flex",
+                  height: "18px",
+                  borderBottom: "1px solid #1A1A1A",
+                  flexShrink: 0,
                 }}
               >
+                {Array.from({ length: 16 }).map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      flex: 1,
+                      borderRight: "1px solid #1A1A1A",
+                      background: "#080808",
+                      height: "5px",
+                      margin: "4px 0",
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Main content — centered */}
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "24px 28px",
+                  gap: "0",
+                }}
+              >
+                {/* Label */}
                 <p
                   style={{
                     fontFamily: SANS,
                     fontSize: "9px",
                     color: "#504E4A",
                     textTransform: "uppercase",
-                    letterSpacing: "0.2em",
-                    marginBottom: "8px",
+                    letterSpacing: "0.25em",
+                    marginBottom: "28px",
+                    textAlign: "center",
                   }}
                 >
-                  TASTE DNA
+                  TASTE — DNA CARD
                 </p>
-                <p
-                  style={{
-                    fontFamily: SERIF,
-                    fontSize: "22px",
-                    fontWeight: 700,
-                    color: "#C8A96E",
-                    fontStyle: "italic",
-                    marginBottom: "6px",
-                  }}
-                >
-                  {story.metadata?.archetype || "Cinematic Explorer"}
-                </p>
+
+                {/* Username */}
                 <p
                   style={{
                     fontFamily: SANS,
-                    fontSize: "12px",
+                    fontSize: "13px",
                     color: "#8A8780",
-                    fontStyle: "italic",
+                    marginBottom: "10px",
+                    textAlign: "center",
                   }}
                 >
-                  {story.metadata?.archetype_desc}
+                  {group.username}
                 </p>
+
+                {/* Archetype — big hero text */}
+                <h2
+                  style={{
+                    fontFamily: SERIF,
+                    fontSize: "32px",
+                    fontWeight: 700,
+                    lineHeight: 1.2,
+                    textAlign: "center",
+                    marginBottom: "16px",
+                    background:
+                      "linear-gradient(105deg, #C8A96E 0%, #F0EDE8 45%, #C8A96E 55%, #DFC080 100%)",
+                    backgroundSize: "300% auto",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                    animation: "goldSweep 3s linear infinite",
+                  }}
+                >
+                  {story.metadata?.archetype || "Cinematic Explorer"}
+                </h2>
+
+                {/* Description */}
+                <p
+                  style={{
+                    fontFamily: SANS,
+                    fontSize: "14px",
+                    color: "#8A8780",
+                    fontStyle: "italic",
+                    textAlign: "center",
+                    lineHeight: 1.65,
+                    maxWidth: "280px",
+                    marginBottom: "32px",
+                  }}
+                >
+                  {story.metadata?.archetype_desc ||
+                    "A cinematic identity shaped by obsessive taste."}
+                </p>
+
+                {/* Genre pills */}
+                {story.metadata?.top_genres?.length > 0 && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: "8px",
+                      justifyContent: "center",
+                      marginBottom: "28px",
+                    }}
+                  >
+                    {(story.metadata.top_genres as any[])
+                      .slice(0, 4)
+                      .map((g: any) => (
+                        <span
+                          key={g.name}
+                          style={{
+                            padding: "4px 12px",
+                            borderRadius: "20px",
+                            fontFamily: SANS,
+                            fontSize: "11px",
+                            fontWeight: 500,
+                            background: "rgba(200,169,110,0.12)",
+                            border: "1px solid rgba(200,169,110,0.25)",
+                            color: "#C8A96E",
+                          }}
+                        >
+                          {g.name} {g.pct}%
+                        </span>
+                      ))}
+                  </div>
+                )}
+
+                {/* Stats row */}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "28px",
+                    justifyContent: "center",
+                  }}
+                >
+                  {story.metadata?.total_films > 0 && (
+                    <div style={{ textAlign: "center" }}>
+                      <p
+                        style={{
+                          fontFamily: "JetBrains Mono, Courier New, monospace",
+                          fontSize: "20px",
+                          color: "#C8A96E",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {story.metadata.total_films}
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: SANS,
+                          fontSize: "9px",
+                          color: "#504E4A",
+                          marginTop: "2px",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.1em",
+                        }}
+                      >
+                        Films
+                      </p>
+                    </div>
+                  )}
+                  {story.metadata?.total_series > 0 && (
+                    <div style={{ textAlign: "center" }}>
+                      <p
+                        style={{
+                          fontFamily: "JetBrains Mono, Courier New, monospace",
+                          fontSize: "20px",
+                          color: "#C8A96E",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {story.metadata.total_series}
+                      </p>
+                      <p
+                        style={{
+                          fontFamily: SANS,
+                          fontSize: "9px",
+                          color: "#504E4A",
+                          marginTop: "2px",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.1em",
+                        }}
+                      >
+                        Series
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Film strip bottom */}
+              <div
+                style={{
+                  display: "flex",
+                  height: "18px",
+                  borderTop: "1px solid #1A1A1A",
+                  flexShrink: 0,
+                }}
+              >
+                {Array.from({ length: 16 }).map((_, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      flex: 1,
+                      borderRight: "1px solid #1A1A1A",
+                      background: "#080808",
+                      height: "5px",
+                      margin: "4px 0",
+                    }}
+                  />
+                ))}
               </div>
             </div>
           )}

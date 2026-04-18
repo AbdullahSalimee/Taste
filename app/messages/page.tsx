@@ -582,16 +582,8 @@ export default function MessagesPage() {
                     >
                       {name}
                     </p>
-                    <span
-                      style={{
-                        fontFamily: MONO,
-                        fontSize: "10px",
-                        color: unread ? "#C8A96E" : "#504E4A",
-                      }}
-                    >
-                      {timeAgo(conv.last_message_at)}
-                    </span>
                   </div>
+
                   <div
                     style={{
                       display: "flex",
@@ -636,7 +628,22 @@ export default function MessagesPage() {
                       </div>
                     )}
                   </div>
+                  <span
+                    style={{
+                      fontFamily: MONO,
+                      fontSize: "10px",
+                      color: unread ? "#C8A96E" : "#504E4A",
+                      height: "18px",
+                    }}
+                  >
+                    {timeAgo(conv.last_message_at)}
+                  </span>
+
+                  {/* ✅ Follow Button Added Here - Only change made */}
                 </div>
+                {other?.id && (
+                  <FollowButton targetUserId={other.id} size="sm" />
+                )}
               </div>
             );
           })}

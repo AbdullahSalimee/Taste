@@ -1,18 +1,6 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
-import {
-  Share2,
-  ChevronRight,
-  ChevronLeft,
-  X,
-  Film,
-  Tv,
-  Star,
-  Clock,
-  TrendingUp,
-} from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
-import { supabase } from "@/lib/supabase";
+import { useState } from "react";
+import { Share2, ChevronRight, ChevronLeft, X } from "lucide-react";
 
 const SERIF = "Playfair Display, Georgia, serif";
 const SANS = "Inter, system-ui, sans-serif";
@@ -37,7 +25,224 @@ const GENRE_COLORS: Record<string, string> = {
   War: "#5A4A3A",
 };
 
-// ── Wrapped Slides ─────────────────────────────────────────────────────────────
+// ── Pure data-driven archetype ────────────────────────────────────────────────
+
+function computeArchetype(params: {
+  topGenre: string;
+  topGenrePct: number;
+  secondGenre: string | null;
+  topDirector: string | null;
+  totalFilms: number;
+  avgRating: number;
+}): { archetype: string; archetype_desc: string } {
+  const {
+    topGenre,
+    topGenrePct,
+    secondGenre,
+    topDirector,
+    totalFilms,
+    avgRating,
+  } = params;
+
+  if (!topGenre || totalFilms < 3) {
+    return {
+      archetype: "The Emerging Cinephile",
+      archetype_desc: "Log a few more films — your identity is taking shape.",
+    };
+  }
+
+  let archetype: string;
+
+  if (topGenrePct >= 55) {
+    const single: Record<string, string> = {
+      Drama: "The Drama Purist",
+      Thriller: "The Tension Seeker",
+      Documentary: "The Truth Chaser",
+      "Sci-Fi": "The Sci-Fi Completionist",
+      "Science Fiction": "The Sci-Fi Completionist",
+      Comedy: "The Comedy Loyalist",
+      Romance: "The Romance Devotee",
+      Horror: "The Horror Obsessive",
+      Animation: "The Animation Archivist",
+      Action: "The Action Regular",
+      Crime: "The Crime Genre Regular",
+      History: "The Historical Record",
+      Mystery: "The Mystery Devotee",
+      Adventure: "The Adventure Completionist",
+      Fantasy: "The Fantasy Loyalist",
+      War: "The War Cinema Devotee",
+    };
+    archetype = single[topGenre] ?? `The ${topGenre} Purist`;
+  } else if (secondGenre) {
+    const key = [topGenre, secondGenre].sort().join("+");
+    const combos: Record<string, string> = {
+      "Drama+Thriller": "The Dark Drama Specialist",
+      "Crime+Drama": "The Crime Drama Regular",
+      "Drama+History": "The Period Drama Collector",
+      "Drama+Romance": "The Emotional Cinema Devotee",
+      "Horror+Thriller": "The Dread Merchant",
+      "Sci-Fi+Thriller": "The Paranoid Futurist",
+      "Action+Crime": "The Genre Pragmatist",
+      "Comedy+Drama": "The Dramedy Curator",
+      "Documentary+Drama": "The Reality-Adjacent Viewer",
+      "Drama+Mystery": "The Slow Burn Collector",
+      "Horror+Mystery": "The Unease Collector",
+      "Action+Thriller": "The High-Stakes Regular",
+    };
+    archetype = combos[key] ?? `The ${topGenre}–${secondGenre} Viewer`;
+  } else {
+    archetype =
+      totalFilms >= 200
+        ? "The Dedicated Archivist"
+        : totalFilms >= 50
+          ? "The Steady Collector"
+          : "The Emerging Cinephile";
+  }
+
+  const ratingNote =
+    avgRating >= 8.0
+      ? "You rate generously — most films earn their keep."
+      : avgRating >= 7.0
+        ? "Your ratings run high; disappointment is rare."
+        : avgRating >= 5.5
+          ? "You hold a critical line — a 7 from you means something."
+          : avgRating > 0
+            ? "You're a tough critic — your stars are hard-won."
+            : "";
+
+  const directorNote = topDirector
+    ? `${topDirector} is your most-watched director.`
+    : "";
+
+  let archetype_desc: string;
+  if (topGenrePct >= 55 && directorNote) {
+    archetype_desc =
+      `${topGenrePct}% of your log is ${topGenre}. ${directorNote} ${ratingNote}`.trim();
+  } else if (topGenrePct >= 55) {
+    archetype_desc =
+      `${topGenrePct}% ${topGenre} — a focused log with a clear centre of gravity. ${ratingNote}`.trim();
+  } else if (secondGenre && directorNote) {
+    archetype_desc =
+      `${topGenre} and ${secondGenre} split your attention. ${directorNote} ${ratingNote}`.trim();
+  } else if (secondGenre) {
+    archetype_desc =
+      `${topGenre} (${topGenrePct}%) and ${secondGenre} define your watching. ${ratingNote}`.trim();
+  } else if (totalFilms >= 200) {
+    archetype_desc =
+      `${totalFilms} films logged — breadth over depth, no single genre claiming you. ${ratingNote}`.trim();
+  } else {
+    archetype_desc = ratingNote || "Your log is taking shape — keep watching.";
+  }
+
+  return { archetype, archetype_desc };
+}
+
+// ── Data builder ──────────────────────────────────────────────────────────────
+
+interface WrappedData {
+  year: number;
+  total_films: number;
+  total_series: number;
+  total_hours: number;
+  avg_rating: number;
+  top_genres: { name: string; count: number; pct: number }[];
+  top_directors: string[];
+  most_watched_month: string;
+  highest_rated: {
+    title: string;
+    rating: number;
+    poster_url: string | null;
+  } | null;
+  archetype: string;
+  archetype_desc: string;
+}
+
+function buildWrappedData(logs: any[], year: number): WrappedData {
+  const yearLogs = logs.filter(
+    (l) => new Date(l.watched_at).getFullYear() === year,
+  );
+  const films = yearLogs.filter(
+    (l) => l.type === "film" || l.media_type === "movie",
+  );
+  const series = yearLogs.filter(
+    (l) => l.type === "series" || l.media_type === "tv",
+  );
+
+  const genreCounts: Record<string, number> = {};
+  const directorCounts: Record<string, number> = {};
+  const monthCounts: Record<string, number> = {};
+
+  for (const log of yearLogs) {
+    const month = new Date(log.watched_at).toLocaleString("en-US", {
+      month: "long",
+    });
+    monthCounts[month] = (monthCounts[month] || 0) + 1;
+    for (const g of log.genres || [])
+      genreCounts[g] = (genreCounts[g] || 0) + 1;
+    if (log.director)
+      directorCounts[log.director] = (directorCounts[log.director] || 0) + 1;
+  }
+
+  const topMonth =
+    Object.entries(monthCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
+  const ratedLogs = yearLogs.filter((l) => l.user_rating);
+  const avgRating =
+    ratedLogs.length > 0
+      ? ratedLogs.reduce((s, l) => s + l.user_rating, 0) / ratedLogs.length
+      : 0;
+
+  const highest = yearLogs
+    .filter((l) => l.user_rating === 5)
+    .sort(
+      (a, b) =>
+        new Date(b.watched_at).getTime() - new Date(a.watched_at).getTime(),
+    )[0];
+
+  const topGenres = Object.entries(genreCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, count]) => ({
+      name,
+      count,
+      pct: Math.round((count / Math.max(yearLogs.length, 1)) * 100),
+    }));
+
+  const topDirectors = Object.entries(directorCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([n]) => n);
+
+  const { archetype, archetype_desc } = computeArchetype({
+    topGenre: topGenres[0]?.name ?? "",
+    topGenrePct: topGenres[0]?.pct ?? 0,
+    secondGenre: topGenres[1]?.name ?? null,
+    topDirector: topDirectors[0] ?? null,
+    totalFilms: films.length,
+    avgRating,
+  });
+
+  return {
+    year,
+    total_films: films.length,
+    total_series: new Set(series.map((s) => s.tmdb_id)).size,
+    total_hours: Math.round(films.length * 1.75),
+    avg_rating: avgRating,
+    top_genres: topGenres,
+    top_directors: topDirectors,
+    most_watched_month: topMonth,
+    highest_rated: highest
+      ? {
+          title: highest.title,
+          rating: highest.user_rating,
+          poster_url: highest.poster_url,
+        }
+      : null,
+    archetype,
+    archetype_desc,
+  };
+}
+
+// ── Slide helpers ─────────────────────────────────────────────────────────────
 
 function SlideWrapper({
   children,
@@ -103,110 +308,8 @@ function BigNumber({
   );
 }
 
-interface WrappedData {
-  year: number;
-  total_films: number;
-  total_series: number;
-  total_hours: number;
-  total_episodes: number;
-  avg_rating: number;
-  top_genres: { name: string; count: number; pct: number }[];
-  top_directors: string[];
-  most_watched_month: string;
-  films_this_year: number; // released this year
-  highest_rated: {
-    title: string;
-    rating: number;
-    poster_url: string | null;
-  } | null;
-  archetype: string;
-  archetype_desc: string;
-}
+// ── Slides ────────────────────────────────────────────────────────────────────
 
-function buildWrappedData(
-  logs: any[],
-  year: number,
-  archetype: string,
-  archetypeDesc: string,
-): WrappedData {
-  const yearLogs = logs.filter(
-    (l) => new Date(l.watched_at).getFullYear() === year,
-  );
-  const films = yearLogs.filter(
-    (l) => l.type === "film" || l.media_type === "movie",
-  );
-  const series = yearLogs.filter(
-    (l) => l.type === "series" || l.media_type === "tv",
-  );
-
-  const genreCounts: Record<string, number> = {};
-  const directorCounts: Record<string, number> = {};
-  const monthCounts: Record<string, number> = {};
-
-  for (const log of yearLogs) {
-    const month = new Date(log.watched_at).toLocaleString("en-US", {
-      month: "long",
-    });
-    monthCounts[month] = (monthCounts[month] || 0) + 1;
-    for (const g of log.genres || [])
-      genreCounts[g] = (genreCounts[g] || 0) + 1;
-    if (log.director)
-      directorCounts[log.director] = (directorCounts[log.director] || 0) + 1;
-  }
-
-  const topMonth =
-    Object.entries(monthCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
-  const ratedLogs = yearLogs.filter((l) => l.user_rating);
-  const avgRating =
-    ratedLogs.length > 0
-      ? ratedLogs.reduce((s, l) => s + l.user_rating, 0) / ratedLogs.length
-      : 0;
-
-  const highest = yearLogs
-    .filter((l) => l.user_rating === 5)
-    .sort(
-      (a, b) =>
-        new Date(b.watched_at).getTime() - new Date(a.watched_at).getTime(),
-    )[0];
-
-  const topGenres = Object.entries(genreCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5)
-    .map(([name, count]) => ({
-      name,
-      count,
-      pct: Math.round((count / Math.max(yearLogs.length, 1)) * 100),
-    }));
-
-  const topDirectors = Object.entries(directorCounts)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([n]) => n);
-
-  return {
-    year,
-    total_films: films.length,
-    total_series: new Set(series.map((s) => s.tmdb_id)).size,
-    total_hours: Math.round(films.length * 1.75),
-    total_episodes: series.length,
-    avg_rating: avgRating,
-    top_genres: topGenres,
-    top_directors: topDirectors,
-    most_watched_month: topMonth,
-    films_this_year: 0,
-    highest_rated: highest
-      ? {
-          title: highest.title,
-          rating: highest.user_rating,
-          poster_url: highest.poster_url,
-        }
-      : null,
-    archetype,
-    archetype_desc: archetypeDesc,
-  };
-}
-
-// Individual Wrapped slides
 function Slide1({ data }: { data: WrappedData }) {
   return (
     <SlideWrapper bg="linear-gradient(180deg, #0A0A0A 0%, #141008 100%)">
@@ -332,8 +435,7 @@ function Slide3({ data }: { data: WrappedData }) {
           maxWidth: "260px",
         }}
       >
-        That's when your cinema obsession hit its peak. Something must have been
-        good on.
+        That's when your cinema obsession hit its peak.
       </p>
     </SlideWrapper>
   );
@@ -511,7 +613,6 @@ function Slide6({ data }: { data: WrappedData }) {
       >
         your cinema identity
       </p>
-      {/* DNA Card mini */}
       <div
         style={{
           width: "100%",
@@ -594,12 +695,14 @@ function Slide6({ data }: { data: WrappedData }) {
               borderTop: "1px solid #1A1A1A",
             }}
           >
-            {[
-              [data.total_films, "Films"],
-              [data.total_series, "Series"],
-              [`${data.total_hours}h`, "Watched"],
-            ].map(([v, l]) => (
-              <div key={String(l)}>
+            {(
+              [
+                [data.total_films, "Films"],
+                [data.total_series, "Series"],
+                [`${data.total_hours}h`, "Watched"],
+              ] as [string | number, string][]
+            ).map(([v, l]) => (
+              <div key={l}>
                 <p
                   style={{
                     fontFamily: MONO,
@@ -653,26 +756,21 @@ function Slide6({ data }: { data: WrappedData }) {
 
 const SLIDES = [Slide1, Slide2, Slide3, Slide4, Slide5, Slide6];
 
-// ── Main Wrapped Modal ─────────────────────────────────────────────────────────
+// ── Main modal ────────────────────────────────────────────────────────────────
+
 interface TasteWrappedProps {
   logs: any[];
-  archetype: string;
-  archetypeDesc: string;
   year?: number;
   onClose: () => void;
 }
 
 export function TasteWrapped({
   logs,
-  archetype,
-  archetypeDesc,
   year = new Date().getFullYear(),
   onClose,
 }: TasteWrappedProps) {
   const [slide, setSlide] = useState(0);
-  const [data] = useState<WrappedData>(() =>
-    buildWrappedData(logs, year, archetype, archetypeDesc),
-  );
+  const [data] = useState<WrappedData>(() => buildWrappedData(logs, year));
 
   const SlideComponent = SLIDES[slide];
 
@@ -773,7 +871,7 @@ export function TasteWrapped({
           <X size={13} />
         </button>
 
-        {/* Slide content */}
+        {/* Slide */}
         <div style={{ flex: 1, overflow: "hidden" }}>
           <SlideComponent data={data} />
         </div>
@@ -846,39 +944,24 @@ export function TasteWrapped({
               fontWeight: slide === SLIDES.length - 1 ? 600 : 400,
             }}
           >
-            {slide === SLIDES.length - 1 ? "Close" : "Next"}{" "}
+            {slide === SLIDES.length - 1 ? "Close" : "Next"}
             {slide < SLIDES.length - 1 && <ChevronRight size={13} />}
           </button>
         </div>
       </div>
 
       <style>{`
-        @keyframes wrappedSlideIn {
-          from { opacity: 0; transform: translateY(16px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes barGrow {
-          from { width: 0; }
-        }
-        @keyframes goldSweep {
-          0% { background-position: -200% center; }
-          100% { background-position: 200% center; }
-        }
+        @keyframes wrappedSlideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes barGrow { from { width: 0; } }
+        @keyframes goldSweep { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
       `}</style>
     </>
   );
 }
 
-// ── Wrapped trigger button ─────────────────────────────────────────────────────
-export function WrappedButton({
-  logs,
-  archetype,
-  archetypeDesc,
-}: {
-  logs: any[];
-  archetype: string;
-  archetypeDesc: string;
-}) {
+// ── Trigger button ────────────────────────────────────────────────────────────
+
+export function WrappedButton({ logs }: { logs: any[] }) {
   const [open, setOpen] = useState(false);
   const currentYear = new Date().getFullYear();
   const yearLogs = logs.filter(
@@ -921,8 +1004,6 @@ export function WrappedButton({
       {open && (
         <TasteWrapped
           logs={logs}
-          archetype={archetype}
-          archetypeDesc={archetypeDesc}
           year={currentYear}
           onClose={() => setOpen(false)}
         />

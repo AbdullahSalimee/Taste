@@ -329,6 +329,264 @@ function MessageContent({ msg, isMine }: { msg: any; isMine: boolean }) {
     );
   }
 
+  // Replace the dna_share block inside MessageContent in your ChatPage file.
+  // Find:  if (msg.content_type === "dna_share" && msg.metadata) {
+  // Replace the entire block with this:
+
+  if (msg.content_type === "dna_share" && msg.metadata) {
+    const m = msg.metadata;
+    const GENRE_COLORS: Record<string, string> = {
+      Drama: "#5C4A8A",
+      Thriller: "#8A2A2A",
+      Documentary: "#2A5C8A",
+      "Sci-Fi": "#2A6A5C",
+      "Science Fiction": "#2A6A5C",
+      Comedy: "#8A7A2A",
+      Romance: "#8A2A5C",
+      Horror: "#6A2A2A",
+      Animation: "#2A6A8A",
+      Action: "#7A4A2A",
+      Crime: "#5A3A5A",
+      History: "#3A5A4A",
+      Mystery: "#4A3A6A",
+      Adventure: "#3A6A4A",
+      Fantasy: "#6A3A7A",
+      War: "#5A4A3A",
+    };
+
+    return (
+      <div
+        style={{
+          // Match TasteDNACard outer wrapper exactly
+          position: "relative",
+          overflow: "hidden",
+          borderRadius: "12px",
+          border: "1px solid #2A2A2A",
+          background:
+            "linear-gradient(135deg, #141414 0%, #111111 50%, #0D0D0D 100%)",
+          minWidth: "240px",
+          maxWidth: "280px",
+        }}
+      >
+        {/* Top film strip — same as TasteDNACard */}
+        <div
+          style={{
+            display: "flex",
+            height: "24px",
+            borderBottom: "1px solid #1A1A1A",
+          }}
+        >
+          {Array.from({ length: 20 }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                borderRight: "1px solid #1A1A1A",
+                background: "#0D0D0D",
+                height: "6px",
+                margin: "6px 0",
+              }}
+            />
+          ))}
+        </div>
+
+        <div style={{ padding: "16px" }}>
+          {/* Label */}
+          <p
+            style={{
+              fontFamily: SANS,
+              fontSize: "9px",
+              color: "#504E4A",
+              textTransform: "uppercase",
+              letterSpacing: "0.2em",
+              marginBottom: "8px",
+            }}
+          >
+            TASTE — DNA CARD
+          </p>
+
+          {/* Archetype title — gold shimmer, same as main card */}
+          <h3
+            style={{
+              fontFamily: "Playfair Display, Georgia, serif",
+              fontSize: "20px",
+              fontWeight: 700,
+              lineHeight: 1.2,
+              background:
+                "linear-gradient(105deg, #C8A96E 0%, #F0EDE8 45%, #C8A96E 55%, #DFC080 100%)",
+              backgroundSize: "300% auto",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              animation: "goldSweep 3s linear infinite",
+              fontStyle: "italic",
+              marginBottom: "4px",
+            }}
+          >
+            {m.archetype}
+          </h3>
+
+          {/* Description */}
+          <p
+            style={{
+              fontFamily: SANS,
+              fontSize: "11px",
+              color: "#8A8780",
+              fontStyle: "italic",
+              lineHeight: 1.5,
+              marginBottom: "12px",
+            }}
+          >
+            {m.archetype_desc}
+          </p>
+
+          {/* Genre bars — same as TasteDNACard full view */}
+          {m.top_genres?.length > 0 && (
+            <div style={{ marginBottom: "12px" }}>
+              <p
+                style={{
+                  fontFamily: SANS,
+                  fontSize: "9px",
+                  color: "#504E4A",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.15em",
+                  marginBottom: "8px",
+                }}
+              >
+                Genres
+              </p>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "6px" }}
+              >
+                {(m.top_genres as any[]).slice(0, 4).map((g: any) => (
+                  <div
+                    key={g.name}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontFamily: SANS,
+                        fontSize: "10px",
+                        color: GENRE_COLORS[g.name] || "#8A8780",
+                        width: "72px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {g.name}
+                    </span>
+                    <div
+                      style={{
+                        flex: 1,
+                        height: "4px",
+                        background: "#1A1A1A",
+                        borderRadius: "2px",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <div
+                        style={{
+                          height: "100%",
+                          borderRadius: "2px",
+                          width: `${g.pct}%`,
+                          background: GENRE_COLORS[g.name] || "#3A3A3A",
+                        }}
+                      />
+                    </div>
+                    <span
+                      style={{
+                        fontFamily: MONO,
+                        fontSize: "9px",
+                        color: "#504E4A",
+                        width: "24px",
+                        textAlign: "right",
+                      }}
+                    >
+                      {g.pct}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Stats — same as TasteDNACard */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "12px",
+              paddingTop: "12px",
+              borderTop: "1px solid #1A1A1A",
+            }}
+          >
+            {[
+              { val: m.total_films, label: "Films" },
+              { val: m.total_series, label: "Series" },
+            ].map(
+              ({ val, label }) =>
+                val > 0 && (
+                  <div key={label}>
+                    <p
+                      style={{
+                        fontFamily: MONO,
+                        color: "#C8A96E",
+                        fontSize: "16px",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {val}
+                    </p>
+                    <p
+                      style={{
+                        fontFamily: SANS,
+                        color: "#504E4A",
+                        fontSize: "9px",
+                        marginTop: "2px",
+                      }}
+                    >
+                      {label}
+                    </p>
+                  </div>
+                ),
+            )}
+          </div>
+        </div>
+
+        {/* Bottom film strip — same as TasteDNACard */}
+        <div
+          style={{
+            display: "flex",
+            height: "24px",
+            borderTop: "1px solid #1A1A1A",
+          }}
+        >
+          {Array.from({ length: 20 }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                borderRight: "1px solid #1A1A1A",
+                background: "#0D0D0D",
+                height: "6px",
+                margin: "6px 0",
+              }}
+            />
+          ))}
+        </div>
+
+        <style>{`
+          @keyframes goldSweep {
+            0%   { background-position: -200% center; }
+            100% { background-position:  200% center; }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
   return (
     <p
       style={{
