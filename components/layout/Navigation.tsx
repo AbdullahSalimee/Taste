@@ -16,6 +16,7 @@ import {
   TrendingUp,
   Users,
   MessageCircle,
+  BookOpen,
 } from "lucide-react";
 import { QuickLog } from "@/components/features/QuickLog";
 import { GlobalSearch } from "@/components/features/GlobalSearch";
@@ -27,6 +28,7 @@ const SANS = "Inter, system-ui, sans-serif";
 const ALL_NAV = [
   { href: "/dashboard", icon: Home, label: "Home" },
   { href: "/discover", icon: Compass, label: "Discover" },
+  { href: "/logbook", icon: BookOpen, label: "Logbook" },
   { href: "/activity", icon: TrendingUp, label: "Community" },
   { href: "/twins", icon: Users, label: "Twins" },
   { href: "/messages", icon: MessageCircle, label: "Messages" },

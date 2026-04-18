@@ -44,9 +44,9 @@ const SERIF = "Playfair Display, Georgia, serif";
 const SANS = "Inter, system-ui, sans-serif";
 const MONO = "JetBrains Mono, Courier New, monospace";
 
-// Convert TMDB /10 rating to /5 (half-star precision)
+// Full decimal precision - no rounding to 0.5
 function toFive(rating: number): number {
-  return Math.round((rating / 2) * 2) / 2; // rounds to nearest 0.5
+  return Math.round((rating / 2) * 100) / 100;
 }
 
 function formatRuntime(mins: number) {
@@ -1126,7 +1126,10 @@ export default function TitleDetailPage() {
     );
   }
 
-  const rating5 = toFive(data.tmdb_rating || 0);
+  // Use combined rating (weighted avg of TMDB + community) if available, else pure TMDB
+  const rating5 = data.combined_rating ?? toFive(data.tmdb_rating || 0);
+  const totalVotes = data.combined_votes ?? data.vote_count ?? 0;
+  const hasCommunityRating = (data.community_votes ?? 0) > 0;
   const isTV = data.type === "series";
   const longOverview = (data.overview || "").length > 300;
 
@@ -1367,7 +1370,8 @@ export default function TitleDetailPage() {
                     color: "#504E4A",
                   }}
                 >
-                  ({data.vote_count?.toLocaleString() || 0} votes)
+                  ({totalVotes.toLocaleString()} votes
+                  {hasCommunityRating ? " · community blended" : ""})
                 </span>
               </div>
 
@@ -1511,9 +1515,26 @@ export default function TitleDetailPage() {
               >
                 <StarRatingInput
                   value={userRating}
-                  onChange={(v) => {
+                  onChange={async (v) => {
                     setUserRatingState(v);
-                    setRating(tmdbId, v);
+                    setRating(tmdbId, v); // localStorage
+                    // Save to Supabase user_ratings
+                    if (user) {
+                      const { supabase } = await import("@/lib/supabase");
+                      const {
+                        data: { session },
+                      } = await supabase.auth.getSession();
+                      if (session) {
+                        await fetch(`/api/title/${mediaType}/${tmdbId}`, {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${session.access_token}`,
+                          },
+                          body: JSON.stringify({ rating: v }),
+                        });
+                      }
+                    }
                   }}
                   size={18}
                 />
@@ -1994,7 +2015,10 @@ export default function TitleDetailPage() {
                 color: "#504E4A",
               }}
             >
-              Based on {data.vote_count?.toLocaleString() || 0} TMDB votes
+              Based on {totalVotes.toLocaleString()} votes
+              {hasCommunityRating
+                ? ` (${data.community_votes} from Taste)`
+                : " (TMDB)"}
             </p>
             {userRating > 0 && (
               <div
