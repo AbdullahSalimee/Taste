@@ -356,10 +356,14 @@ export function CinephileLevel({ compact = false }: CinephileLevelProps) {
   const [prestigeConfirm, setPrestigeConfirm] = useState(false);
   const [prestigeFlash, setPrestigeFlash] = useState(false);
 
-  const refresh = useCallback(() => setData(getCinephileData()), []);
+  const refresh = useCallback(() => {
+    getCinephileData().then(setData);
+  }, []);
+
   useEffect(() => {
     refresh();
   }, [logs, refresh]);
+ 
 
   if (!data) return null;
 
@@ -371,14 +375,16 @@ export function CinephileLevel({ compact = false }: CinephileLevelProps) {
       setPrestigeConfirm(true);
       return;
     }
-    doPrestige();
-    setPrestigeFlash(true);
-    setPrestigeConfirm(false);
-    setTimeout(() => {
-      setPrestigeFlash(false);
-      refresh();
-    }, 1200);
+    doPrestige().then(() => {
+      setPrestigeFlash(true);
+      setPrestigeConfirm(false);
+      setTimeout(() => {
+        setPrestigeFlash(false);
+        refresh();
+      }, 1200);
+    });
   }
+ 
 
   // ── COMPACT (profile sidebar / DNA card embed) ─────────────────────────
   if (compact) {

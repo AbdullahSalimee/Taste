@@ -1,9 +1,17 @@
 "use client";
-import { useState } from "react";
+
 import { Share2, Send } from "lucide-react";
-import { useStats, useUserProfile } from "@/lib/hooks";
+
 import { SendToFriend } from "@/components/features/SendToFriend";
-import { getCinephileData, RANK_COLORS, toRoman } from "@/lib/cinephile-level";
+import { useState, useEffect } from "react";
+import { useStats, useUserProfile, useLogs } from "@/lib/hooks";
+import {
+  getCinephileData,
+  RANK_COLORS,
+  toRoman,
+  type CinephileData,
+} from "@/lib/cinephile-level";
+
 
 const SERIF = "Playfair Display, Georgia, serif";
 const SANS = "Inter, system-ui, sans-serif";
@@ -144,8 +152,30 @@ interface TasteDNACardProps {
 export function TasteDNACard({ compact = false }: TasteDNACardProps) {
   const stats = useStats();
   const profile = useUserProfile();
+  const logs = useLogs();
   const [shared, setShared] = useState(false);
   const [sendDnaOpen, setSendDnaOpen] = useState(false);
+const defaultCinephile: CinephileData = {
+  xp: 0,
+  rank: "Casual",
+  rankIndex: 0,
+  xpForCurrentRank: 0,
+  xpForNextRank: 199,
+  progressInRank: 0,
+  prestige: 0,
+  badges: [],
+  totalFilms: 0,
+  totalSeries: 0,
+  totalReviews: 0,
+  totalRated: 0,
+  twinCount: 0,
+};
+
+const [cinephile, setCinephile] = useState<CinephileData>(defaultCinephile);
+
+useEffect(() => {
+  Promise.resolve(getCinephileData()).then(setCinephile);
+}, [logs]);
 
   const { archetype, archetype_desc } = computeArchetype({
     topGenre: stats.top_genres[0]?.name ?? "",
@@ -156,10 +186,8 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
     avgRating: stats.avg_rating ?? 0,
   });
 
-  // ── Cinephile level ──────────────────────────────────────────────────────
-  const cinephile = getCinephileData();
+  // ── Cinephile level — now from state, not direct call ──
   const rankColors = RANK_COLORS[cinephile.rank];
-
   const handleShare = () => {
     const text = `My cinema identity on Taste: "${archetype}" — ${archetype_desc} · ${cinephile.rank} (${cinephile.xp} XP)`;
     navigator.clipboard.writeText(text).catch(() => {});
