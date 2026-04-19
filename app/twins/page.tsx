@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Users, RefreshCw, MessageCircle, Film } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
+// ── FIX 2: recordTwin imported here (client-side) instead of in the API route ──
+import { recordTwin } from "@/lib/cinephile-level";
 
 const SERIF = "Playfair Display, Georgia, serif";
 const SANS = "Inter, system-ui, sans-serif";
@@ -110,6 +112,9 @@ export default function TwinsPage() {
     setLoading(false);
   }
 
+  // ── FIX 2: runMatch now calls recordTwin() on the CLIENT after POST returns ──
+  // The old code called recordTwin() inside the API route (server-side),
+  // but window/localStorage don't exist on the server so it silently did nothing.
   async function runMatch() {
     setRunning(true);
     setRunMsg("");
@@ -118,13 +123,25 @@ export default function TwinsPage() {
       setRunning(false);
       return;
     }
+
     const res = await fetch("/api/twins", {
       method: "POST",
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
     const data = await res.json();
+
     setRunMsg(data.message || "Done!");
+
+    // Reload twins list
     await loadTwins();
+
+    // Award XP for newly found twins — must happen client-side so localStorage is accessible
+    if (data.twins_found > 0) {
+      for (let i = 0; i < data.twins_found; i++) {
+        recordTwin(); // +25 XP each, written to localStorage
+      }
+    }
+
     setRunning(false);
   }
 

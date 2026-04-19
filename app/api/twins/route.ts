@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-// At the top
-import { recordTwin } from "@/lib/cinephile-level";
+// ── FIX 2: REMOVED import of recordTwin — it uses localStorage (window),
+// which doesn't exist on the server. XP is now awarded on the client side
+// in app/twins/page.tsx after the POST response comes back. ──
 
 function getDb() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -148,9 +149,10 @@ export async function POST(request: NextRequest) {
 
   await db.from("twins").insert(twinRows);
 
-  topMatches.forEach(() => recordTwin());
+  // ── FIX 2: recordTwin() REMOVED from here — window is undefined on the server.
+  // The client (app/twins/page.tsx runMatch function) calls recordTwin() instead.
 
-  // Send notifications to new twins
+  // Send notifications to newly matched twins
   const { data: myProfile } = await db
     .from("profiles")
     .select("username, display_name")
