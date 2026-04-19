@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Share2, Send } from "lucide-react";
 import { useStats, useUserProfile } from "@/lib/hooks";
 import { SendToFriend } from "@/components/features/SendToFriend";
+import { getCinephileData, RANK_COLORS, toRoman } from "@/lib/cinephile-level";
 
 const SERIF = "Playfair Display, Georgia, serif";
 const SANS = "Inter, system-ui, sans-serif";
@@ -27,8 +28,6 @@ const GENRE_COLORS: Record<string, string> = {
   War: "#5A4A3A",
 };
 
-// ── Compute archetype from real user data, no AI ──────────────────────────────
-
 function computeArchetype(params: {
   topGenre: string;
   topGenrePct: number;
@@ -46,7 +45,6 @@ function computeArchetype(params: {
     avgRating,
   } = params;
 
-  // Not enough data yet
   if (!topGenre || totalFilms < 3) {
     return {
       archetype: "The Emerging Cinephile",
@@ -54,10 +52,7 @@ function computeArchetype(params: {
     };
   }
 
-  // ── Title ──────────────────────────────────────────────────────────────────
-
   let archetype: string;
-
   if (topGenrePct >= 55) {
     const single: Record<string, string> = {
       Drama: "The Drama Purist",
@@ -104,8 +99,6 @@ function computeArchetype(params: {
           : "The Emerging Cinephile";
   }
 
-  // ── Description ───────────────────────────────────────────────────────────
-
   const ratingNote =
     avgRating >= 8.0
       ? "You rate generously — most films earn their keep."
@@ -122,7 +115,6 @@ function computeArchetype(params: {
     : "";
 
   let archetype_desc: string;
-
   if (topGenrePct >= 55 && directorNote) {
     archetype_desc =
       `${topGenrePct}% of your log is ${topGenre}. ${directorNote} ${ratingNote}`.trim();
@@ -145,8 +137,6 @@ function computeArchetype(params: {
   return { archetype, archetype_desc };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 interface TasteDNACardProps {
   compact?: boolean;
 }
@@ -166,8 +156,12 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
     avgRating: stats.avg_rating ?? 0,
   });
 
+  // ── Cinephile level ──────────────────────────────────────────────────────
+  const cinephile = getCinephileData();
+  const rankColors = RANK_COLORS[cinephile.rank];
+
   const handleShare = () => {
-    const text = `My cinema identity on Taste: "${archetype}" — ${archetype_desc}`;
+    const text = `My cinema identity on Taste: "${archetype}" — ${archetype_desc} · ${cinephile.rank} (${cinephile.xp} XP)`;
     navigator.clipboard.writeText(text).catch(() => {});
     setShared(true);
     setTimeout(() => setShared(false), 2000);
@@ -187,6 +181,7 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
     cursor: "pointer",
   };
 
+  // ── COMPACT CARD ──────────────────────────────────────────────────────────
   if (compact) {
     return (
       <>
@@ -316,6 +311,77 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
             </div>
           )}
 
+          {/* ── Cinephile rank row ── */}
+          <div
+            style={{
+              marginTop: "12px",
+              paddingTop: "10px",
+              borderTop: "1px solid #1A1A1A",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+              <div
+                style={{
+                  width: "20px",
+                  height: "20px",
+                  borderRadius: "50%",
+                  background: rankColors.bg,
+                  border: `1px solid ${rankColors.border}`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow:
+                    cinephile.rank === "Auteur"
+                      ? `0 0 6px ${rankColors.primary}40`
+                      : "none",
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: SERIF,
+                    fontSize: "9px",
+                    color: rankColors.primary,
+                    fontStyle: "italic",
+                    fontWeight: 700,
+                  }}
+                >
+                  {cinephile.rank[0]}
+                </span>
+              </div>
+              <span
+                style={{
+                  fontFamily: SERIF,
+                  fontSize: "12px",
+                  color: rankColors.primary,
+                  fontStyle: "italic",
+                  fontWeight: 600,
+                }}
+              >
+                {cinephile.rank}
+                {cinephile.prestige > 0 && (
+                  <span
+                    style={{
+                      fontFamily: MONO,
+                      fontSize: "9px",
+                      marginLeft: "3px",
+                      fontStyle: "normal",
+                    }}
+                  >
+                    {toRoman(cinephile.prestige)}
+                  </span>
+                )}
+              </span>
+            </div>
+            <span
+              style={{ fontFamily: MONO, fontSize: "9px", color: "#504E4A" }}
+            >
+              {cinephile.xp.toLocaleString()} XP
+            </span>
+          </div>
+
           {stats.total_films === 0 && (
             <p
               style={{
@@ -348,7 +414,7 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
     );
   }
 
-  // Full card
+  // ── FULL CARD ─────────────────────────────────────────────────────────────
   return (
     <>
       <div
@@ -385,6 +451,7 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
         </div>
 
         <div style={{ padding: "24px" }}>
+          {/* Header */}
           <div
             style={{
               display: "flex",
@@ -461,8 +528,9 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
             </div>
           </div>
 
+          {/* Genre bars */}
           {stats.top_genres.length > 0 && (
-            <div style={{ marginBottom: "20px" }}>
+            <div style={{ marginBottom: "4px" }}>
               <p
                 style={{
                   fontFamily: SANS,
@@ -537,26 +605,142 @@ export function TasteDNACard({ compact = false }: TasteDNACardProps) {
             </div>
           )}
 
-      
+          {/* ── Cinephile rank row — sits between genres and stats ── */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              padding: "12px 0",
+              marginTop: "16px",
+              borderTop: "1px solid #1A1A1A",
+              gap: "10px",
+            }}
+          >
+            {/* Badge circle */}
+            <div
+              style={{
+                width: "30px",
+                height: "30px",
+                borderRadius: "50%",
+                flexShrink: 0,
+                background: rankColors.bg,
+                border: `1.5px solid ${rankColors.border}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow:
+                  cinephile.rank === "Auteur"
+                    ? `0 0 10px ${rankColors.primary}50`
+                    : "none",
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: SERIF,
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  color: rankColors.primary,
+                  fontStyle: "italic",
+                }}
+              >
+                {cinephile.rank[0]}
+              </span>
+            </div>
 
+            {/* Label */}
+            <div style={{ flexShrink: 0 }}>
+              <p
+                style={{
+                  fontFamily: SERIF,
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  color: rankColors.primary,
+                  fontStyle: "italic",
+                  lineHeight: 1,
+                }}
+              >
+                {cinephile.rank}
+                {cinephile.prestige > 0 && (
+                  <span
+                    style={{
+                      fontFamily: MONO,
+                      fontSize: "9px",
+                      marginLeft: "4px",
+                      fontStyle: "normal",
+                      opacity: 0.8,
+                    }}
+                  >
+                    {toRoman(cinephile.prestige)}
+                  </span>
+                )}
+              </p>
+              <p
+                style={{
+                  fontFamily: MONO,
+                  fontSize: "9px",
+                  color: "#504E4A",
+                  marginTop: "2px",
+                }}
+              >
+                {cinephile.xp.toLocaleString()} XP
+              </p>
+            </div>
+
+            {/* Mini progress bar */}
+            <div style={{ flex: 1 }}>
+              <div
+                style={{
+                  height: "3px",
+                  background: "#1A1A1A",
+                  borderRadius: "2px",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${cinephile.progressInRank * 100}%`,
+                    background: rankColors.primary,
+                    borderRadius: "2px",
+                    boxShadow: `0 0 4px ${rankColors.primary}50`,
+                    transition: "width 0.8s cubic-bezier(0.16,1,0.3,1)",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Next rank label */}
+            <span
+              style={{
+                fontFamily: MONO,
+                fontSize: "9px",
+                color: "#504E4A",
+                flexShrink: 0,
+              }}
+            >
+              {cinephile.xpForNextRank
+                ? `${(cinephile.xpForNextRank - cinephile.xp).toLocaleString()} to next`
+                : "Max rank"}
+            </span>
+          </div>
+
+          {/* Stats grid */}
           <div
             className="justify-center items-center"
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr 1fr",
               gap: "16px",
-              paddingTop: "16px",
+              paddingTop: "14px",
               borderTop: "1px solid #1A1A1A",
             }}
           >
             {[
-              { val: stats.total_films.toLocaleString(), label: "Films" },
-              { val: stats.total_series, label: "Series" },
-              { val: `${stats.total_hours}h`, label: "Watched" },
-            ].map(({ val, label }) => (
-              <div
-              className="flex flex-col items-center"
-                key={label}>
+              [stats.total_films.toLocaleString(), "Films"],
+              [stats.total_series, "Series"],
+              [`${stats.total_hours}h`, "Watched"],
+            ].map(([val, label]) => (
+              <div className="flex flex-col items-center" key={String(label)}>
                 <p
                   className="w-fit"
                   style={{

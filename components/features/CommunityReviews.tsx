@@ -3,6 +3,8 @@ import { useState, useEffect, useCallback } from "react";
 import { Heart, AlertTriangle, Send, ChevronDown } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/components/features/AuthGate";
+// At the top with other imports
+import { recordReview } from "@/lib/cinephile-level";
 import { supabase } from "@/lib/supabase";
 
 const SANS = "Inter, system-ui, sans-serif";
@@ -420,19 +422,43 @@ export function CommunityReviews({
       });
 
       const data = await res.json();
-      if (data.ok) {
-        const newReview = data.review;
-        setReviews((prev) => [newReview, ...prev]);
-        if (data.anonymous) saveLocalReview(tmdbId, newReview);
-        setText("");
-        setRating(0);
-        setIsSpoiler(false);
-        setAnonName("");
-        setSubmitted(true);
-        setTimeout(() => setSubmitted(false), 3000);
-      } else {
-        setFormError(data.error || "Failed to submit.");
-      }
+     if (data.ok) {
+       const newReview = data.review;
+       setReviews((prev) => [newReview, ...prev]);
+       if (data.anonymous) saveLocalReview(tmdbId, newReview);
+        
+       recordReview();
+       // If the review included a rating, blend it into community score
+       if (rating > 0 && !data.anonymous) {
+         try {
+           const { supabase } = await import("@/lib/supabase");
+           const {
+             data: { session },
+           } = await supabase.auth.getSession();
+           if (session) {
+             await fetch(`/api/title/${mediaType}/${tmdbId}`, {
+               method: "POST",
+               headers: {
+                 "Content-Type": "application/json",
+                 Authorization: `Bearer ${session.access_token}`,
+               },
+               body: JSON.stringify({ rating }),
+             });
+           }
+         } catch (e) {
+           console.error("Community rating blend failed:", e);
+         }
+       }
+
+       setText("");
+       setRating(0);
+       setIsSpoiler(false);
+       setAnonName("");
+       setSubmitted(true);
+       setTimeout(() => setSubmitted(false), 3000);
+     } else {
+       setFormError(data.error || "Failed to submit.");
+     }
     } catch {
       setFormError("Network error. Try again.");
     } finally {

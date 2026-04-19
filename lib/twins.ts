@@ -6,6 +6,7 @@
 import { supabase } from "./supabase";
 import { getUser } from "./db";
 import { createNotification } from "./notifications";
+import { recordTwin } from "./cinephile-level";
 
 export interface TwinMatch {
   user_id: string;
@@ -81,6 +82,7 @@ export async function checkForNewTwins(): Promise<TwinMatch[]> {
 
   const newTwins: TwinMatch[] = [];
 
+  // Inside the for loop, after both inserts and notifications
   for (const twin of potentialTwins) {
     if (!existingIds.has(twin.twin_user_id)) {
       // Save the twin match
@@ -99,12 +101,17 @@ export async function checkForNewTwins(): Promise<TwinMatch[]> {
         match_percentage: twin.match_percentage,
       });
 
+      // === ADD THIS LINE ===
+      recordTwin(); // Grants +25 XP for finding a new Taste Twin
+
       // Get current user's profile for notification
       const { data: myProfile } = await supabase
         .from("profiles")
         .select("username, display_name")
         .eq("id", user.id)
         .single();
+
+      // ... rest of the notification code stays the same
 
       // Notify the twin
       await createNotification(

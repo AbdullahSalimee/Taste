@@ -474,27 +474,48 @@ function LogSheet({
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
 
-  function save() {
-    setSaving(true);
-    addLog({
-      tmdb_id: tmdbId,
-      type: type === "series" ? "series" : "film",
-      title,
-      poster_url: posterUrl,
-      year,
-      tmdb_rating: tmdbRating,
-      user_rating: rating || null,
-      note: note || null,
-      status,
-      genres: genres || [],
-      director: director || undefined,
-    });
-    if (rating) setRating(tmdbId, rating);
-    setSaving(false);
-    onLogged();
-    onClose();
+async function save() {
+  setSaving(true);
+  addLog({
+    tmdb_id: tmdbId,
+    type: type === "series" ? "series" : "film",
+    title,
+    poster_url: posterUrl,
+    year,
+    tmdb_rating: tmdbRating,
+    user_rating: rating || null,
+    note: note || null,
+    status,
+    genres: genres || [],
+    director: director || undefined,
+  });
+  if (rating) {
+    setRating(tmdbId, rating);
+    // Push rating into community blend
+    try {
+      const { supabase } = await import("@/lib/supabase");
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session) {
+        const mediaType = type === "series" ? "tv" : "movie";
+        await fetch(`/api/title/${mediaType}/${tmdbId}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ rating }),
+        });
+      }
+    } catch (e) {
+      console.error("Community rating update failed:", e);
+    }
   }
-
+  setSaving(false);
+  onLogged();
+  onClose();
+}
   return (
     <div
       style={{

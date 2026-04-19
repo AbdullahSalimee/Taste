@@ -22,7 +22,9 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useLogs, useWatchlist, useStats, useUserProfile } from "@/lib/hooks";
+import { CinephileLevel } from "@/components/features/CinephileLevel";
 import { saveUserProfile, removeLog } from "@/lib/store";
+import { StreakCard } from "@/components/features/StreakCard";
 import { TasteDNACard } from "@/components/features/TasteDNACard";
 import { getMyTwins } from "@/lib/twins";
 import { FollowButton, FollowStats } from "@/components/features/FollowButton";
@@ -761,6 +763,7 @@ export default function ProfilePage() {
           className="profile-grid"
         >
           <div>
+            <StreakCard compact={false} />
             {/* Recently watched */}
             {watched.length > 0 && (
               <div style={{ marginBottom: "28px" }}>
@@ -1082,6 +1085,8 @@ export default function ProfilePage() {
               </div>
             )}
             <ActivityChart logs={logs} />
+
+            <CinephileLevel />
             {stats.top_directors.length > 0 && (
               <div>
                 <p
@@ -1100,7 +1105,7 @@ export default function ProfilePage() {
                   style={{
                     display: "flex",
                     flexDirection: "column",
-                    gap: "6px",
+                    gap: "13px",
                   }}
                 >
                   {stats.top_directors.map((d: string) => (
@@ -1112,11 +1117,13 @@ export default function ProfilePage() {
                         gap: "8px",
                         padding: "6px 10px",
                         background: "#0F0F0F",
+                        margin: "10",
                         borderRadius: "6px",
                         border: "1px solid #1A1A1A",
                       }}
                     >
                       <Award size={11} color="#C8A96E" />
+
                       <span
                         style={{
                           fontFamily: SANS,

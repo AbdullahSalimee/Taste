@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+// At the top
+import { recordTwin } from "@/lib/cinephile-level";
 
 function getDb() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -145,6 +147,8 @@ export async function POST(request: NextRequest) {
   }));
 
   await db.from("twins").insert(twinRows);
+
+  topMatches.forEach(() => recordTwin());
 
   // Send notifications to new twins
   const { data: myProfile } = await db

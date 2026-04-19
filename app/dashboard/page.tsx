@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { StreakCard } from "@/components/features/StreakCard";
 import Link from "next/link";
 import {
   Film,
@@ -1342,6 +1343,8 @@ export default function DashboardPage() {
         {/* ── RIGHT SIDEBAR ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
           {/* Stats */}
+
+          <StreakCard compact />
           {(stats.total_films > 0 || stats.total_series > 0) && (
             <div>
               <GenreBars genres={stats.top_genres} />
