@@ -4,7 +4,7 @@ import { Heart, AlertTriangle, Send, ChevronDown } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useAuthGate } from "@/components/features/AuthGate";
 // At the top with other imports
-import { recordReview } from "@/lib/cinephile-level";
+
 import { supabase } from "@/lib/supabase";
 
 const SANS = "Inter, system-ui, sans-serif";
@@ -427,7 +427,7 @@ export function CommunityReviews({
        setReviews((prev) => [newReview, ...prev]);
        if (data.anonymous) saveLocalReview(tmdbId, newReview);
         
-       recordReview();
+   
        // If the review included a rating, blend it into community score
        if (rating > 0 && !data.anonymous) {
          try {

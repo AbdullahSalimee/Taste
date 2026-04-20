@@ -52,6 +52,7 @@ function toRow(r: any, mediaType: "movie" | "tv") {
       ? r.title || r.original_title || ""
       : r.name || r.original_name || "",
     original_title: isMovie ? r.original_title : r.original_name,
+    genre_ids: r.genre_ids || [], // ← add this line
     overview: r.overview || null,
     original_language: r.original_language || null,
     poster_path: r.poster_path || null,
@@ -71,15 +72,96 @@ function toRow(r: any, mediaType: "movie" | "tv") {
   };
 }
 
+
+async function syncMissingGenres() {
+  const db = getDb();
+
+  // Get title_ids that DO have genres
+  const { data: hasGenres } = await db.from("title_genres").select("title_id");
+
+  const coveredIds = new Set((hasGenres || []).map((r: any) => r.title_id));
+
+  // Get all titles
+  const { data: allTitles } = await db
+    .from("titles")
+    .select("id, tmdb_id, media_type");
+
+  const missing = (allTitles || []).filter((t: any) => !coveredIds.has(t.id));
+
+  if (!missing.length) return 0;
+
+  console.log(`Found ${missing.length} titles missing genres`);
+
+  let synced = 0;
+  for (let i = 0; i < missing.length; i += 20) {
+    const batch = missing.slice(i, i + 20);
+    await Promise.all(
+      batch.map(async (title: any) => {
+        try {
+          const endpoint =
+            title.media_type === "movie"
+              ? `/movie/${title.tmdb_id}`
+              : `/tv/${title.tmdb_id}`;
+          const data = await tmdb(endpoint);
+          const genres: { id: number }[] = data.genres || [];
+          if (!genres.length) return;
+
+          const rows = genres.map((g: any) => ({
+            title_id: title.id,
+            genre_id: g.id,
+          }));
+
+          await db.from("title_genres").upsert(rows, {
+            onConflict: "title_id,genre_id",
+            ignoreDuplicates: true,
+          });
+          synced++;
+        } catch {}
+      }),
+    );
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  return synced;
+}
 async function upsertBatch(db: any, rows: any[]) {
   if (!rows.length) return 0;
-  const { error } = await db
+
+  // Save genre_ids before stripping them from the title row
+  const genreMap: Record<number, number[]> = {};
+  for (const row of rows) {
+    if (row.genre_ids?.length) {
+      genreMap[row.tmdb_id] = row.genre_ids;
+    }
+    delete row.genre_ids; // titles table doesn't have this column
+  }
+
+  const { data, error } = await db
     .from("titles")
-    .upsert(rows, { onConflict: "tmdb_id,media_type" });
+    .upsert(rows, { onConflict: "tmdb_id,media_type" })
+    .select("id, tmdb_id");
+
   if (error) {
     console.error("upsert error:", error.message);
     return 0;
   }
+
+  // Insert genre rows for titles that have genre_ids
+  if (data?.length) {
+    const genreRows: { title_id: string; genre_id: number }[] = [];
+    for (const title of data) {
+      const genres = genreMap[title.tmdb_id] || [];
+      for (const gId of genres) {
+        genreRows.push({ title_id: title.id, genre_id: gId });
+      }
+    }
+    if (genreRows.length) {
+      await db.from("title_genres").upsert(genreRows, {
+        onConflict: "title_id,genre_id",
+        ignoreDuplicates: true,
+      });
+    }
+  }
+
   return rows.length;
 }
 
@@ -332,13 +414,15 @@ export async function GET(request: NextRequest) {
   try {
     let synced = 0;
 
-    if (mode === "bulk") {
-      synced = await bulkSync(from, to, pages);
-    } else if (mode === "seed") {
-      synced = await seedSync();
-    } else {
-      synced = await trendingSync();
-    }
+  if (mode === "bulk") {
+    synced = await bulkSync(from, to, pages);
+  } else if (mode === "seed") {
+    synced = await seedSync();
+  } else if (mode === "genres") {
+    synced = await syncMissingGenres();
+  } else {
+    synced = await trendingSync();
+  }
 
     const db = getDb();
     const { count } = await db

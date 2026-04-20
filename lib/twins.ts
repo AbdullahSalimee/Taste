@@ -6,8 +6,6 @@
 import { supabase } from "./supabase";
 import { getUser } from "./db";
 import { createNotification } from "./notifications";
-import { recordTwin } from "./cinephile-level";
-
 export interface TwinMatch {
   user_id: string;
   twin_user_id: string;

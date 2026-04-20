@@ -9,6 +9,7 @@
  */
 
 import { supabase, posterUrl, backdropUrl } from "./supabase";
+import { invalidateGenreCache } from "./cinephile-level";
 
 // ── localStorage keys ─────────────────────────────────────────────────────────
 const LS_LOGS = "taste_logs";
@@ -205,6 +206,8 @@ export async function addLog(
         watched_at: newEntry.watched_at,
       });
     }
+
+    invalidateGenreCache(user.id); // ← add this
     // Also save rating if provided
     if (entry.user_rating) {
       await saveRating(entry.tmdb_id, mt, entry.user_rating);
