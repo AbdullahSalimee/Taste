@@ -481,7 +481,7 @@ export default function DiscoverPage() {
     clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(
       () => fetchTitles(1, false),
-      query ? 350 : 0,
+      query ? 150 : 0,
     );
     return () => clearTimeout(searchTimer.current);
   }, [query, mediaType, genre, decade, language, sort]);

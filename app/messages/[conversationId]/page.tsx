@@ -52,7 +52,7 @@ function MovieMentionDropdown({
     }
     setLoading(true);
     const controller = new AbortController();
-    fetch(`/api/search?q=${encodeURIComponent(query)}`, {
+    fetch(`/api/discover?q=${encodeURIComponent(query)}&limit=6`, {
       signal: controller.signal,
     })
       .then((r) => r.json())
@@ -1296,7 +1296,7 @@ export default function ChatPage() {
   const { conversationId } = useParams<{ conversationId: string }>();
   const { user } = useAuth();
   const router = useRouter();
-
+const [attachedTitles, setAttachedTitles] = useState<any[]>([]);
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
@@ -1399,10 +1399,65 @@ export default function ChatPage() {
 
   // Send a regular text message
   async function send() {
-    if (!text.trim() || sending) return;
-    const session = await getSession();
-    if (!session) return;
+    if (!text.trim() && attachedTitles.length === 0) return;
+    if (sending) return;
+    setSending(true);
 
+    const session = await getSession();
+    if (!session) {
+      setSending(false);
+      return;
+    }
+
+    // Send attached title cards first
+    for (const metadata of attachedTitles) {
+      const tempId = `temp-${Date.now()}-${metadata.tmdb_id}`;
+      const optimistic: any = {
+        id: tempId,
+        content: `Check out ${metadata.title}`,
+        content_type: "title_rec",
+        metadata,
+        created_at: new Date().toISOString(),
+        is_mine: true,
+        sender_id: user!.id,
+        status: "sending",
+        reply_to: null,
+        reactions: {},
+      };
+      setMessages((prev) => [...prev, optimistic]);
+
+      const res = await fetch(`/api/messages/${conversationId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          content: `Check out ${metadata.title}`,
+          content_type: "title_rec",
+          metadata,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === tempId
+              ? {
+                  ...data.message,
+                  is_mine: true,
+                  status: "sent",
+                  reactions: {},
+                }
+              : m,
+          ),
+        );
+      }
+    }
+    setAttachedTitles([]);
+
+    if (!text.trim() || sending) return;
+  
     const tempId = `temp-${Date.now()}`;
     const optimistic: any = {
       id: tempId,
@@ -1465,90 +1520,40 @@ export default function ChatPage() {
   }
 
   // Send a movie/TV title recommendation
-  async function sendTitleRec(item: any) {
-    const session = await getSession();
-    if (!session) return;
+ function attachTitle(item: any) {
+  const isTV = item.media_type === "tv" || item.type === "series";
+  const metadata = {
+    tmdb_id: item.tmdb_id || item.id,
+    media_type: isTV ? "tv" : "movie",
+    title: item.title,
+    poster_url: item.poster_url,
+    year: item.year,
+    tmdb_rating_5:
+      item.tmdb_rating_5 ||
+      (item.tmdb_rating ? Math.round((item.tmdb_rating / 2) * 2) / 2 : 0),
+    overview: item.overview,
+  };
 
-    const isTV = item.media_type === "tv" || item.type === "series";
-    const metadata = {
-      tmdb_id: item.tmdb_id || item.id,
-      media_type: isTV ? "tv" : "movie",
-      title: item.title,
-      poster_url: item.poster_url,
-      year: item.year,
-      tmdb_rating_5:
-        item.tmdb_rating_5 ||
-        (item.tmdb_rating ? Math.round((item.tmdb_rating / 2) * 2) / 2 : 0),
-      overview: item.overview,
-    };
+  // Avoid duplicates
+  setAttachedTitles((prev) =>
+    prev.find((t) => t.tmdb_id === metadata.tmdb_id)
+      ? prev
+      : [...prev, metadata],
+  );
 
-    const tempId = `temp-${Date.now()}`;
-    const optimistic: any = {
-      id: tempId,
-      content: `Check out ${item.title}`,
-      content_type: "title_rec",
-      metadata,
-      created_at: new Date().toISOString(),
-      is_mine: true,
-      sender_id: user!.id,
-      status: "sending",
-      reply_to: null,
-      reactions: {},
-    };
-
-    setMessages((prev) => [...prev, optimistic]);
-
-    // Clear the @mention from the text
-    setText((prev) => {
-      const beforeMention = prev.slice(0, mentionStart);
-      return beforeMention.trimEnd();
-    });
-    setMentionActive(false);
-    setMentionQuery("");
-    setMentionStart(-1);
-    if (inputRef.current) inputRef.current.style.height = "auto";
-
-    const res = await fetch(`/api/messages/${conversationId}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        content: `Check out ${item.title}`,
-        content_type: "title_rec",
-        metadata,
-      }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === tempId
-            ? { ...data.message, is_mine: true, status: "sent", reactions: {} }
-            : m,
-        ),
-      );
-      setTimeout(
-        () =>
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === data.message?.id ? { ...m, status: "delivered" } : m,
-            ),
-          ),
-        800,
-      );
-      setTimeout(
-        () =>
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === data.message?.id ? { ...m, status: "read" } : m,
-            ),
-          ),
-        2000,
-      );
-    }
+  // Clear the @mention from input, keep any text before @
+  setText((prev) => {
+    const beforeAt = prev.slice(0, mentionStart).trimEnd();
+    return beforeAt ? beforeAt + " " : "";
+  });
+  setMentionActive(false);
+  setMentionQuery("");
+  setMentionStart(-1);
+  if (inputRef.current) {
+    inputRef.current.style.height = "auto";
+    inputRef.current.focus();
   }
+}
 
   // Handle textarea input — detect @mention
   function onInput(e: React.FormEvent<HTMLTextAreaElement>) {
@@ -1561,7 +1566,7 @@ export default function ChatPage() {
     // Detect @ mentions
     const cursor = t.selectionStart || 0;
     const textUpToCursor = val.slice(0, cursor);
-    const atMatch = textUpToCursor.match(/@([^\s]*)$/);
+    const atMatch = textUpToCursor.match(/@(.*)$/);
 
     if (atMatch) {
       setMentionActive(true);
@@ -1944,7 +1949,7 @@ export default function ChatPage() {
           >
             <MovieMentionDropdown
               query={mentionQuery}
-              onSelect={sendTitleRec}
+              onSelect={attachTitle} // ← was sendTitleRec
               anchorRef={inputRef}
             />
           </div>
@@ -2003,6 +2008,72 @@ export default function ChatPage() {
               >
                 film
               </span>
+            </div>
+          )}
+          {/* Attached title chips */}
+          {attachedTitles.length > 0 && (
+            <div
+              style={{
+                padding: "8px 14px",
+                borderTop: "1px solid #1A1A1A",
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "6px",
+                background: "#0D0D0D",
+              }}
+            >
+              {attachedTitles.map((t) => (
+                <div
+                  key={t.tmdb_id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "4px 8px 4px 4px",
+                    background: "#141414",
+                    border: "1px solid rgba(200,169,110,0.3)",
+                    borderRadius: "8px",
+                  }}
+                >
+                  {t.poster_url && (
+                    <img
+                      src={t.poster_url}
+                      style={{
+                        width: 20,
+                        height: 30,
+                        borderRadius: 3,
+                        objectFit: "cover",
+                      }}
+                    />
+                  )}
+                  <span
+                    style={{
+                      fontFamily: SANS,
+                      fontSize: "12px",
+                      color: "#F0EDE8",
+                    }}
+                  >
+                    {t.title}
+                  </span>
+                  <button
+                    onClick={() =>
+                      setAttachedTitles((prev) =>
+                        prev.filter((x) => x.tmdb_id !== t.tmdb_id),
+                      )
+                    }
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "#504E4A",
+                      padding: 0,
+                      display: "flex",
+                    }}
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
           <textarea
