@@ -100,8 +100,7 @@ export async function checkForNewTwins(): Promise<TwinMatch[]> {
       });
 
       // === ADD THIS LINE ===
-      recordTwin(); // Grants +25 XP for finding a new Taste Twin
-
+  
       // Get current user's profile for notification
       const { data: myProfile } = await supabase
         .from("profiles")

@@ -67,10 +67,10 @@ export const RANK_THRESHOLDS: {
   min: number;
   max: number | null;
 }[] = [
-  { rank: "Casual", min: 0, max: 199 },
-  { rank: "Enthusiast", min: 200, max: 599 },
-  { rank: "Devotee", min: 600, max: 1499 },
-  { rank: "Auteur", min: 1500, max: null },
+  { rank: "Casual", min: 0, max: 999 },
+  { rank: "Enthusiast", min: 1000, max: 1999 },
+  { rank: "Devotee", min: 2000, max: 2999 },
+  { rank: "Auteur", min: 3000, max: null },
 ];
 
 export const RANK_COLORS: Record<
@@ -111,21 +111,21 @@ export const GENRE_BADGE_REQUIREMENTS: {
   required: number;
   color: string;
 }[] = [
-  { genre: "Drama", required: 20, color: "#5C4A8A" },
-  { genre: "Thriller", required: 15, color: "#8A2A2A" },
-  { genre: "Documentary", required: 10, color: "#2A5C8A" },
-  { genre: "Sci-Fi", required: 10, color: "#2A6A5C" },
-  { genre: "Comedy", required: 15, color: "#8A7A2A" },
-  { genre: "Horror", required: 10, color: "#6A2A2A" },
-  { genre: "Romance", required: 10, color: "#8A2A5C" },
-  { genre: "Animation", required: 10, color: "#2A6A8A" },
-  { genre: "Action", required: 15, color: "#7A4A2A" },
-  { genre: "Crime", required: 10, color: "#5A3A5A" },
-  { genre: "History", required: 8, color: "#3A5A4A" },
-  { genre: "Mystery", required: 8, color: "#4A3A6A" },
-  { genre: "Adventure", required: 10, color: "#3A6A4A" },
-  { genre: "Fantasy", required: 10, color: "#6A3A7A" },
-  { genre: "War", required: 8, color: "#5A4A3A" },
+  { genre: "Drama", required: 50, color: "#5C4A8A" },
+  { genre: "Thriller", required: 100, color: "#8A2A2A" },
+  { genre: "Documentary", required: 30, color: "#2A5C8A" },
+  { genre: "Sci-Fi", required: 100, color: "#2A6A5C" },
+  { genre: "Comedy", required: 150, color: "#8A7A2A" },
+  { genre: "Horror", required: 100, color: "#6A2A2A" },
+  { genre: "Romance", required: 100, color: "#8A2A5C" },
+  { genre: "Animation", required: 100, color: "#2A6A8A" },
+  { genre: "Action", required: 150, color: "#7A4A2A" },
+  { genre: "Crime", required: 100, color: "#5A3A5A" },
+  { genre: "History", required: 80, color: "#3A5A4A" },
+  { genre: "Mystery", required: 80, color: "#4A3A6A" },
+  { genre: "Adventure", required: 100, color: "#3A6A4A" },
+  { genre: "Fantasy", required: 100, color: "#6A3A7A" },
+  { genre: "War", required: 80, color: "#5A4A3A" },
 ];
 
 // ── localStorage cache helpers ─────────────────────────────────────────────────
