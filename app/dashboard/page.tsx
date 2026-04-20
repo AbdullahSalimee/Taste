@@ -1348,9 +1348,10 @@ export default function DashboardPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
           {/* Stats */}
           <StreakCard compact />
+          <CinephileLevel compact />
           <WeeklyLeaderboard compact />
           <CommunityChallenges compact />
-          <CinephileLevel compact />
+          
           {(stats.total_films > 0 || stats.total_series > 0) && (
             <div>
               <GenreBars genres={stats.top_genres} />
