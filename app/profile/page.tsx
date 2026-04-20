@@ -33,7 +33,8 @@ import { TasteDNACard } from "@/components/features/TasteDNACard";
 import { getMyTwins } from "@/lib/twins";
 import { FollowButton, FollowStats } from "@/components/features/FollowButton";
 import { WrappedButton } from "@/components/features/TasteWrapped";
-
+import { CommunityChallenges } from "@/components/features/CommunityChallenge";
+import { WeeklyLeaderboard } from "@/components/features/WeeklyLeaderboard";
 const SERIF = "Playfair Display, Georgia, serif";
 const SANS = "Inter, system-ui, sans-serif";
 const MONO = "JetBrains Mono, Courier New, monospace";
@@ -1096,8 +1097,9 @@ export default function ProfilePage() {
               </div>
             )}
             <ActivityChart logs={logs} />
-
             <CinephileLevel />
+            <WeeklyLeaderboard /> 
+            <CommunityChallenges />
             {stats.top_directors.length > 0 && (
               <div>
                 <p
@@ -1638,20 +1640,24 @@ export default function ProfilePage() {
                       }}
                     >
                       {d}
-                    </span>
+                    </span>{" "}
+                    {followModal && (
+                      <UserListModal
+                        userId={user.id}
+                        type={followModal}
+                        title={
+                          followModal === "followers"
+                            ? "Followers"
+                            : "Following"
+                        }
+                        onClose={() => setFollowModal(null)}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
             )}
           </div>
-          {followModal && (
-            <UserListModal
-              userId={user.id}
-              type={followModal}
-              title={followModal === "followers" ? "Followers" : "Following"}
-              onClose={() => setFollowModal(null)}
-            />
-          )}
         </div>
       )}
 

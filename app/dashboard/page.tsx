@@ -3,6 +3,9 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { StreakCard } from "@/components/features/StreakCard";
 import Link from "next/link";
+// app/dashboard/page.tsx — right sidebar, after StreakCard
+import { WeeklyLeaderboard } from "@/components/features/WeeklyLeaderboard";
+import { CommunityChallenges } from "@/components/features/CommunityChallenge";
 import {
   Film,
   Tv,
@@ -1345,13 +1348,15 @@ export default function DashboardPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
           {/* Stats */}
           <StreakCard compact />
+          <WeeklyLeaderboard compact />
+          <CommunityChallenges compact />
           <CinephileLevel compact />
           {(stats.total_films > 0 || stats.total_series > 0) && (
             <div>
               <GenreBars genres={stats.top_genres} />
             </div>
           )}
- 
+
           {/* Watchlist */}
           {watchlist.length > 0 && (
             <div>
