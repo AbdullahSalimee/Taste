@@ -21,6 +21,7 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { useLogs, useWatchlist, useStats, useTrending } from "@/lib/hooks";
 import { removeLog, removeFromWatchlist } from "@/lib/store";
+import { CinephileLevel } from "@/components/features/CinephileLevel";
 
 const SERIF = "Playfair Display, Georgia, serif";
 const SANS = "Inter, system-ui, sans-serif";
@@ -1343,14 +1344,14 @@ export default function DashboardPage() {
         {/* ── RIGHT SIDEBAR ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
           {/* Stats */}
-
           <StreakCard compact />
+          <CinephileLevel compact />
           {(stats.total_films > 0 || stats.total_series > 0) && (
             <div>
               <GenreBars genres={stats.top_genres} />
             </div>
           )}
-
+ 
           {/* Watchlist */}
           {watchlist.length > 0 && (
             <div>
@@ -1393,7 +1394,6 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
-
           {/* Quick links */}
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             {[

@@ -5,8 +5,7 @@ import Link from "next/link";
 import { Users, RefreshCw, MessageCircle, Film } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
-// ── FIX 2: recordTwin imported here (client-side) instead of in the API route ──
-import { recordTwin } from "@/lib/cinephile-level";
+
 
 const SERIF = "Playfair Display, Georgia, serif";
 const SANS = "Inter, system-ui, sans-serif";

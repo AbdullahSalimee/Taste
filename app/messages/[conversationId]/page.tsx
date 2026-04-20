@@ -16,6 +16,8 @@ import {
   Trash2,
   X,
   Film,
+  Tv,
+  Search,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/lib/supabase";
@@ -25,6 +27,273 @@ const MONO = "JetBrains Mono, Courier New, monospace";
 const SERIF = "Playfair Display, Georgia, serif";
 
 const REACTIONS = ["❤️", "😂", "😮", "😢", "🔥", "👍"];
+
+// ─── Movie Mention Dropdown ───────────────────────────────────────────────────
+
+interface MovieMentionDropdownProps {
+  query: string;
+  onSelect: (item: any) => void;
+  anchorRef: React.RefObject<HTMLTextAreaElement>;
+}
+
+function MovieMentionDropdown({
+  query,
+  onSelect,
+  anchorRef,
+}: MovieMentionDropdownProps) {
+  const [results, setResults] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [imgErrors, setImgErrors] = useState<Record<number, boolean>>({});
+
+  useEffect(() => {
+    if (query.length < 1) {
+      setResults([]);
+      return;
+    }
+    setLoading(true);
+    const controller = new AbortController();
+    fetch(`/api/search?q=${encodeURIComponent(query)}`, {
+      signal: controller.signal,
+    })
+      .then((r) => r.json())
+      .then((d) => {
+        setResults((d.results || []).slice(0, 6));
+        setLoading(false);
+      })
+      .catch((e) => {
+        if (e.name !== "AbortError") setLoading(false);
+      });
+    return () => controller.abort();
+  }, [query]);
+
+  if (!loading && results.length === 0 && query.length < 1) return null;
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        bottom: "calc(100% + 8px)",
+        left: 0,
+        right: 0,
+        background: "#141414",
+        border: "1px solid #2A2A2A",
+        borderRadius: "12px",
+        overflow: "hidden",
+        zIndex: 200,
+        boxShadow: "0 -12px 40px rgba(0,0,0,0.8)",
+        maxHeight: "320px",
+        overflowY: "auto",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: "10px 14px 8px",
+          borderBottom: "1px solid #1A1A1A",
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+          position: "sticky",
+          top: 0,
+          background: "#141414",
+          zIndex: 1,
+        }}
+      >
+        <Film size={12} color="#C8A96E" />
+        <span
+          style={{
+            fontFamily: SANS,
+            fontSize: "11px",
+            color: "#C8A96E",
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.1em",
+          }}
+        >
+          Mention a title
+        </span>
+        {loading && (
+          <div
+            style={{
+              width: "10px",
+              height: "10px",
+              borderRadius: "50%",
+              border: "1.5px solid #2A2A2A",
+              borderTopColor: "#C8A96E",
+              marginLeft: "auto",
+              animation: "spin 0.8s linear infinite",
+            }}
+          />
+        )}
+      </div>
+
+      {/* Results */}
+      {results.length === 0 && !loading && query.length >= 1 ? (
+        <div style={{ padding: "20px", textAlign: "center" }}>
+          <p style={{ fontFamily: SANS, fontSize: "12px", color: "#504E4A" }}>
+            No results for "{query}"
+          </p>
+        </div>
+      ) : (
+        results.map((item, idx) => {
+          const isTV = item.media_type === "tv" || item.type === "series";
+          const hasImgErr = imgErrors[item.id];
+          return (
+            <div
+              key={`${item.media_type}-${item.id}`}
+              onClick={() => onSelect(item)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                padding: "10px 14px",
+                cursor: "pointer",
+                borderBottom:
+                  idx < results.length - 1 ? "1px solid #1A1A1A" : "none",
+                transition: "background 0.1s",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = "#1A1A1A")
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+            >
+              {/* Poster */}
+              <div
+                style={{
+                  width: "30px",
+                  height: "44px",
+                  borderRadius: "3px",
+                  overflow: "hidden",
+                  background: "#1A1A1A",
+                  flexShrink: 0,
+                  border: "1px solid #2A2A2A",
+                }}
+              >
+                {item.poster_url && !hasImgErr ? (
+                  <img
+                    src={item.poster_url}
+                    alt={item.title}
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                    }}
+                    onError={() =>
+                      setImgErrors((prev) => ({ ...prev, [item.id]: true }))
+                    }
+                  />
+                ) : (
+                  <div
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {isTV ? (
+                      <Tv size={10} color="#2A2A2A" />
+                    ) : (
+                      <Film size={10} color="#2A2A2A" />
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Info */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p
+                  style={{
+                    fontFamily: SANS,
+                    fontSize: "13px",
+                    color: "#F0EDE8",
+                    fontWeight: 500,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {item.title}
+                </p>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    marginTop: "2px",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontFamily: SANS,
+                      fontSize: "9px",
+                      padding: "1px 5px",
+                      borderRadius: "3px",
+                      background: isTV
+                        ? "rgba(74,158,107,0.12)"
+                        : "rgba(92,74,138,0.12)",
+                      color: isTV ? "#4A9E6B" : "#9A8AC0",
+                    }}
+                  >
+                    {isTV ? "TV" : "Film"}
+                  </span>
+                  {item.year > 0 && (
+                    <span
+                      style={{
+                        fontFamily: MONO,
+                        fontSize: "10px",
+                        color: "#504E4A",
+                      }}
+                    >
+                      {item.year}
+                    </span>
+                  )}
+                  {item.tmdb_rating > 0 && (
+                    <span
+                      style={{
+                        fontFamily: MONO,
+                        fontSize: "10px",
+                        color: "#C8A96E",
+                      }}
+                    >
+                      ★{" "}
+                      {(item.tmdb_rating_5 || item.tmdb_rating / 2).toFixed(1)}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Send hint */}
+              <span
+                style={{
+                  fontFamily: SANS,
+                  fontSize: "10px",
+                  color: "#2A2A2A",
+                  flexShrink: 0,
+                }}
+              >
+                ↵
+              </span>
+            </div>
+          );
+        })
+      )}
+
+      {query.length === 0 && !loading && (
+        <div style={{ padding: "16px 14px", textAlign: "center" }}>
+          <p style={{ fontFamily: SANS, fontSize: "12px", color: "#504E4A" }}>
+            Type a movie or show name…
+          </p>
+        </div>
+      )}
+
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
 
 // ─── Avatar ──────────────────────────────────────────────────────────────────
 function Avatar({
@@ -82,7 +351,6 @@ function Avatar({
   );
 }
 
-// ─── Time ────────────────────────────────────────────────────────────────────
 function timeStr(date: string) {
   return new Date(date).toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -90,7 +358,6 @@ function timeStr(date: string) {
   });
 }
 
-// ─── Tick (read receipts) ─────────────────────────────────────────────────────
 function Ticks({
   status,
   mine,
@@ -105,7 +372,6 @@ function Ticks({
   return <CheckCheck size={12} color={color} />;
 }
 
-// ─── Special message cards ────────────────────────────────────────────────────
 function MessageContent({ msg, isMine }: { msg: any; isMine: boolean }) {
   const router = useRouter();
 
@@ -178,19 +444,6 @@ function MessageContent({ msg, isMine }: { msg: any; isMine: boolean }) {
                 }}
               >
                 ★ {m.user_rating}/5
-              </p>
-            )}
-            {m.note && (
-              <p
-                style={{
-                  fontFamily: SANS,
-                  fontSize: "11px",
-                  color: isMine ? "rgba(13,13,13,0.6)" : "#8A8780",
-                  fontStyle: "italic",
-                  marginTop: 3,
-                }}
-              >
-                "{m.note}"
               </p>
             )}
           </div>
@@ -266,6 +519,7 @@ function MessageContent({ msg, isMine }: { msg: any; isMine: boolean }) {
   if (msg.content_type === "title_rec" && msg.metadata) {
     const m = msg.metadata;
     const mt = m.media_type === "tv" ? "tv" : "movie";
+    const isTV = m.media_type === "tv";
     return (
       <div
         onClick={() => router.push(`/title/${mt}/${m.tmdb_id}`)}
@@ -275,6 +529,13 @@ function MessageContent({ msg, isMine }: { msg: any; isMine: boolean }) {
           borderRadius: "10px",
           padding: "10px",
           cursor: "pointer",
+          minWidth: "200px",
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.filter = "brightness(1.1)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.filter = "brightness(1)";
         }}
       >
         <p
@@ -282,56 +543,112 @@ function MessageContent({ msg, isMine }: { msg: any; isMine: boolean }) {
             fontFamily: SANS,
             fontSize: "10px",
             color: isMine ? "rgba(13,13,13,0.7)" : "#4A9E6B",
-            marginBottom: "6px",
+            marginBottom: "8px",
             textTransform: "uppercase",
             letterSpacing: "0.1em",
           }}
         >
-          🎬 Recommended
+          🎬 {isTV ? "TV Recommendation" : "Film Recommendation"}
         </p>
         <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          {m.poster_url && (
-            <img
-              src={m.poster_url}
-              alt={m.title}
+          {m.poster_url ? (
+            <div
               style={{
-                width: 34,
-                height: 50,
-                objectFit: "cover",
-                borderRadius: 3,
+                width: 40,
+                height: 60,
+                borderRadius: 4,
+                overflow: "hidden",
                 flexShrink: 0,
+                border: "1px solid rgba(255,255,255,0.08)",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
               }}
-            />
+            >
+              <img
+                src={m.poster_url}
+                alt={m.title}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            </div>
+          ) : (
+            <div
+              style={{
+                width: 40,
+                height: 60,
+                borderRadius: 4,
+                background: "#1A1A1A",
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {isTV ? (
+                <Tv size={14} color="#504E4A" />
+              ) : (
+                <Film size={14} color="#504E4A" />
+              )}
+            </div>
           )}
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <p
               style={{
                 fontFamily: SANS,
                 fontSize: "13px",
                 color: isMine ? "#0D0D0D" : "#F0EDE8",
-                fontWeight: 500,
+                fontWeight: 600,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}
             >
               {m.title}
             </p>
-            <p
+            <div
               style={{
-                fontFamily: MONO,
-                fontSize: "10px",
-                color: isMine ? "rgba(13,13,13,0.5)" : "#504E4A",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                marginTop: "3px",
               }}
             >
-              {m.year} · ★ {m.tmdb_rating_5}/5
+              {m.year > 0 && (
+                <p
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: "10px",
+                    color: isMine ? "rgba(13,13,13,0.5)" : "#504E4A",
+                  }}
+                >
+                  {m.year}
+                </p>
+              )}
+              {m.tmdb_rating_5 > 0 && (
+                <p
+                  style={{
+                    fontFamily: MONO,
+                    fontSize: "10px",
+                    color: isMine ? "rgba(13,13,13,0.7)" : "#C8A96E",
+                  }}
+                >
+                  ★ {m.tmdb_rating_5}/5
+                </p>
+              )}
+            </div>
+            <p
+              style={{
+                fontFamily: SANS,
+                fontSize: "10px",
+                color: isMine ? "rgba(13,13,13,0.5)" : "#4A9E6B",
+                marginTop: "4px",
+              }}
+            >
+              Tap to view →
             </p>
           </div>
         </div>
       </div>
     );
   }
-
-  // Replace the dna_share block inside MessageContent in your ChatPage file.
-  // Find:  if (msg.content_type === "dna_share" && msg.metadata) {
-  // Replace the entire block with this:
 
   if (msg.content_type === "dna_share" && msg.metadata) {
     const m = msg.metadata;
@@ -353,11 +670,9 @@ function MessageContent({ msg, isMine }: { msg: any; isMine: boolean }) {
       Fantasy: "#6A3A7A",
       War: "#5A4A3A",
     };
-
     return (
       <div
         style={{
-          // Match TasteDNACard outer wrapper exactly
           position: "relative",
           overflow: "hidden",
           borderRadius: "12px",
@@ -368,7 +683,6 @@ function MessageContent({ msg, isMine }: { msg: any; isMine: boolean }) {
           maxWidth: "280px",
         }}
       >
-        {/* Top film strip — same as TasteDNACard */}
         <div
           style={{
             display: "flex",
@@ -389,9 +703,7 @@ function MessageContent({ msg, isMine }: { msg: any; isMine: boolean }) {
             />
           ))}
         </div>
-
         <div style={{ padding: "16px" }}>
-          {/* Label */}
           <p
             style={{
               fontFamily: SANS,
@@ -404,8 +716,6 @@ function MessageContent({ msg, isMine }: { msg: any; isMine: boolean }) {
           >
             TASTE — DNA CARD
           </p>
-
-          {/* Archetype title — gold shimmer, same as main card */}
           <h3
             style={{
               fontFamily: "Playfair Display, Georgia, serif",
@@ -424,8 +734,6 @@ function MessageContent({ msg, isMine }: { msg: any; isMine: boolean }) {
           >
             {m.archetype}
           </h3>
-
-          {/* Description */}
           <p
             style={{
               fontFamily: SANS,
@@ -438,8 +746,6 @@ function MessageContent({ msg, isMine }: { msg: any; isMine: boolean }) {
           >
             {m.archetype_desc}
           </p>
-
-          {/* Genre bars — same as TasteDNACard full view */}
           {m.top_genres?.length > 0 && (
             <div style={{ marginBottom: "12px" }}>
               <p
@@ -511,8 +817,6 @@ function MessageContent({ msg, isMine }: { msg: any; isMine: boolean }) {
               </div>
             </div>
           )}
-
-          {/* Stats — same as TasteDNACard */}
           <div
             style={{
               display: "grid",
@@ -554,8 +858,6 @@ function MessageContent({ msg, isMine }: { msg: any; isMine: boolean }) {
             )}
           </div>
         </div>
-
-        {/* Bottom film strip — same as TasteDNACard */}
         <div
           style={{
             display: "flex",
@@ -576,13 +878,7 @@ function MessageContent({ msg, isMine }: { msg: any; isMine: boolean }) {
             />
           ))}
         </div>
-
-        <style>{`
-          @keyframes goldSweep {
-            0%   { background-position: -200% center; }
-            100% { background-position:  200% center; }
-          }
-        `}</style>
+        <style>{`@keyframes goldSweep { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }`}</style>
       </div>
     );
   }
@@ -602,7 +898,6 @@ function MessageContent({ msg, isMine }: { msg: any; isMine: boolean }) {
   );
 }
 
-// ─── Reaction Picker ──────────────────────────────────────────────────────────
 function ReactionPicker({
   onPick,
   onClose,
@@ -660,7 +955,6 @@ function ReactionPicker({
   );
 }
 
-// ─── Message bubble ───────────────────────────────────────────────────────────
 function MessageBubble({
   msg,
   isMine,
@@ -680,8 +974,6 @@ function MessageBubble({
 }) {
   const [showPicker, setShowPicker] = useState(false);
   const [showActions, setShowActions] = useState(false);
-  const bubbleRef = useRef<HTMLDivElement>(null);
-
   const reactions = msg.reactions || {};
   const reactionEntries = Object.entries(reactions) as [string, number][];
 
@@ -695,7 +987,6 @@ function MessageBubble({
         marginBottom: "2px",
       }}
     >
-      {/* Sender name for group clarity */}
       {!isMine && showAvatar && (
         <div
           style={{
@@ -714,8 +1005,6 @@ function MessageBubble({
           </span>
         </div>
       )}
-
-      {/* Bubble + action buttons */}
       <div
         style={{
           display: "flex",
@@ -724,7 +1013,6 @@ function MessageBubble({
           flexDirection: isMine ? "row-reverse" : "row",
         }}
       >
-        {/* Quick action: reply */}
         <button
           onClick={() => onReply(msg)}
           style={{
@@ -744,8 +1032,7 @@ function MessageBubble({
         >
           <Reply size={14} />
         </button>
-
-        <div ref={bubbleRef} style={{ position: "relative" }}>
+        <div style={{ position: "relative" }}>
           <div
             onDoubleClick={() => setShowPicker(true)}
             onContextMenu={(e) => {
@@ -783,7 +1070,6 @@ function MessageBubble({
               btns?.forEach((b) => (b.style.opacity = "0"));
             }}
           >
-            {/* Reply preview — inside the bubble like WhatsApp */}
             {msg.reply_to && (
               <div
                 style={{
@@ -844,7 +1130,6 @@ function MessageBubble({
               </span>
               <Ticks status={msg.status || "read"} mine={isMine} />
             </div>
-
             {showPicker && (
               <ReactionPicker
                 onPick={(e) => {
@@ -855,8 +1140,6 @@ function MessageBubble({
               />
             )}
           </div>
-
-          {/* Context menu */}
           {showActions && (
             <>
               <div
@@ -940,8 +1223,6 @@ function MessageBubble({
             </>
           )}
         </div>
-
-        {/* Delete quick btn for mine */}
         {isMine && (
           <button
             onClick={() => onDelete(msg.id)}
@@ -964,8 +1245,6 @@ function MessageBubble({
           </button>
         )}
       </div>
-
-      {/* Reactions row */}
       {reactionEntries.length > 0 && (
         <div
           style={{
@@ -1023,16 +1302,21 @@ export default function ChatPage() {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const [otherUser, setOtherUser] = useState<any>(null);
-  const [isTyping, setIsTyping] = useState(false); // other person typing
+  const [isTyping, setIsTyping] = useState(false);
   const [replyTo, setReplyTo] = useState<any>(null);
   const [online, setOnline] = useState(false);
+
+  // @movie mention state
+  const [mentionActive, setMentionActive] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionStart, setMentionStart] = useState(-1);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const typingTimeoutRef = useRef<any>(null);
   const channelRef = useRef<any>(null);
+  const inputContainerRef = useRef<HTMLDivElement>(null);
 
-  // ── Auth helper ──────────────────────────────────────────────────────────
   async function getSession() {
     const {
       data: { session },
@@ -1040,7 +1324,6 @@ export default function ChatPage() {
     return session;
   }
 
-  // ── Load messages ────────────────────────────────────────────────────────
   const loadMessages = useCallback(async () => {
     const session = await getSession();
     if (!session) return;
@@ -1052,7 +1335,6 @@ export default function ChatPage() {
     setLoading(false);
   }, [conversationId]);
 
-  // ── Load other user ──────────────────────────────────────────────────────
   async function loadOtherUser() {
     const session = await getSession();
     if (!session) return;
@@ -1066,13 +1348,11 @@ export default function ChatPage() {
     if (conv?.others?.[0]) setOtherUser(conv.others[0]);
   }
 
-  // ── Realtime subscription ────────────────────────────────────────────────
   useEffect(() => {
     if (!user) return;
     loadMessages();
     loadOtherUser();
 
-    // Realtime: new messages
     const channel = supabase
       .channel(`chat:${conversationId}`)
       .on(
@@ -1085,14 +1365,13 @@ export default function ChatPage() {
         },
         (payload) => {
           const newMsg = payload.new as any;
-          if (newMsg.sender_id === user.id) return; // already added optimistically
+          if (newMsg.sender_id === user.id) return;
           setMessages((prev) => [
             ...prev,
             { ...newMsg, is_mine: false, status: "read" },
           ]);
         },
       )
-      // Typing presence
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState() as any;
         const others = Object.values(state)
@@ -1102,9 +1381,8 @@ export default function ChatPage() {
         setOnline(others.length > 0);
       })
       .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") {
+        if (status === "SUBSCRIBED")
           await channel.track({ user_id: user.id, typing: false });
-        }
       });
 
     channelRef.current = channel;
@@ -1113,14 +1391,13 @@ export default function ChatPage() {
     };
   }, [user, conversationId]);
 
-  // ── Scroll to bottom ─────────────────────────────────────────────────────
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
       behavior: messages.length < 5 ? "instant" : "smooth",
     } as any);
   }, [messages, isTyping]);
 
-  // ── Send message ─────────────────────────────────────────────────────────
+  // Send a regular text message
   async function send() {
     if (!text.trim() || sending) return;
     const session = await getSession();
@@ -1141,12 +1418,9 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, optimistic]);
     setText("");
     setReplyTo(null);
-    if (inputRef.current) {
-      inputRef.current.style.height = "auto";
-    }
+    setMentionActive(false);
+    if (inputRef.current) inputRef.current.style.height = "auto";
     setSending(true);
-
-    // Stop typing indicator
     channelRef.current?.track({ user_id: user!.id, typing: false });
 
     const res = await fetch(`/api/messages/${conversationId}`, {
@@ -1162,7 +1436,6 @@ export default function ChatPage() {
       }),
     });
     const data = await res.json();
-
     setMessages((prev) =>
       prev.map((m) =>
         m.id === tempId
@@ -1170,8 +1443,6 @@ export default function ChatPage() {
           : m,
       ),
     );
-
-    // Simulate delivered → read for demo
     setTimeout(
       () =>
         setMessages((prev) =>
@@ -1193,12 +1464,114 @@ export default function ChatPage() {
     setSending(false);
   }
 
-  // ── Typing broadcast ─────────────────────────────────────────────────────
+  // Send a movie/TV title recommendation
+  async function sendTitleRec(item: any) {
+    const session = await getSession();
+    if (!session) return;
+
+    const isTV = item.media_type === "tv" || item.type === "series";
+    const metadata = {
+      tmdb_id: item.tmdb_id || item.id,
+      media_type: isTV ? "tv" : "movie",
+      title: item.title,
+      poster_url: item.poster_url,
+      year: item.year,
+      tmdb_rating_5:
+        item.tmdb_rating_5 ||
+        (item.tmdb_rating ? Math.round((item.tmdb_rating / 2) * 2) / 2 : 0),
+      overview: item.overview,
+    };
+
+    const tempId = `temp-${Date.now()}`;
+    const optimistic: any = {
+      id: tempId,
+      content: `Check out ${item.title}`,
+      content_type: "title_rec",
+      metadata,
+      created_at: new Date().toISOString(),
+      is_mine: true,
+      sender_id: user!.id,
+      status: "sending",
+      reply_to: null,
+      reactions: {},
+    };
+
+    setMessages((prev) => [...prev, optimistic]);
+
+    // Clear the @mention from the text
+    setText((prev) => {
+      const beforeMention = prev.slice(0, mentionStart);
+      return beforeMention.trimEnd();
+    });
+    setMentionActive(false);
+    setMentionQuery("");
+    setMentionStart(-1);
+    if (inputRef.current) inputRef.current.style.height = "auto";
+
+    const res = await fetch(`/api/messages/${conversationId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        content: `Check out ${item.title}`,
+        content_type: "title_rec",
+        metadata,
+      }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === tempId
+            ? { ...data.message, is_mine: true, status: "sent", reactions: {} }
+            : m,
+        ),
+      );
+      setTimeout(
+        () =>
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === data.message?.id ? { ...m, status: "delivered" } : m,
+            ),
+          ),
+        800,
+      );
+      setTimeout(
+        () =>
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === data.message?.id ? { ...m, status: "read" } : m,
+            ),
+          ),
+        2000,
+      );
+    }
+  }
+
+  // Handle textarea input — detect @mention
   function onInput(e: React.FormEvent<HTMLTextAreaElement>) {
     const t = e.currentTarget;
     t.style.height = "auto";
     t.style.height = Math.min(t.scrollHeight, 130) + "px";
-    setText(t.value);
+    const val = t.value;
+    setText(val);
+
+    // Detect @ mentions
+    const cursor = t.selectionStart || 0;
+    const textUpToCursor = val.slice(0, cursor);
+    const atMatch = textUpToCursor.match(/@([^\s]*)$/);
+
+    if (atMatch) {
+      setMentionActive(true);
+      setMentionQuery(atMatch[1]);
+      setMentionStart(cursor - atMatch[0].length);
+    } else {
+      setMentionActive(false);
+      setMentionQuery("");
+      setMentionStart(-1);
+    }
 
     channelRef.current?.track({ user_id: user?.id, typing: true });
     clearTimeout(typingTimeoutRef.current);
@@ -1207,7 +1580,19 @@ export default function ChatPage() {
     }, 2000);
   }
 
-  // ── React to message ─────────────────────────────────────────────────────
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (mentionActive && e.key === "Escape") {
+      e.preventDefault();
+      setMentionActive(false);
+      setMentionQuery("");
+      return;
+    }
+    if (e.key === "Enter" && !e.shiftKey && !mentionActive) {
+      e.preventDefault();
+      send();
+    }
+  }
+
   function handleReact(msgId: string, emoji: string) {
     setMessages((prev) =>
       prev.map((m) => {
@@ -1217,20 +1602,10 @@ export default function ChatPage() {
         return { ...m, reactions };
       }),
     );
-    // TODO: persist to DB — POST /api/reactions { message_id, emoji }
   }
 
-  // ── Delete message ───────────────────────────────────────────────────────
   function handleDelete(msgId: string) {
     setMessages((prev) => prev.filter((m) => m.id !== msgId));
-    // TODO: DELETE /api/messages/[conversationId]/[msgId]
-  }
-
-  function onKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      send();
-    }
   }
 
   const otherName = otherUser?.username || otherUser?.display_name || "Chat";
@@ -1255,6 +1630,10 @@ export default function ChatPage() {
         @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .msg-in { animation: fadeUp 0.2s ease; }
         @media (min-width: 640px) { .chat-shell { left: 224px !important; } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes typingBounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+        @keyframes mentionFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .mention-dropdown { animation: mentionFadeIn 0.18s cubic-bezier(0.16,1,0.3,1); }
       `}</style>
 
       {/* ── Header ── */}
@@ -1393,7 +1772,7 @@ export default function ChatPage() {
                 marginTop: "6px",
               }}
             >
-              Share logs, reviews, or a recommendation
+              Share logs, reviews, or type @ to recommend a film
             </p>
           </div>
         ) : (
@@ -1401,14 +1780,11 @@ export default function ChatPage() {
             const isMine = msg.is_mine;
             const prevMsg = messages[i - 1];
             const showAvatar = !isMine && (!prevMsg || prevMsg.is_mine);
-
-            // Date divider
             const msgDate = new Date(msg.created_at).toDateString();
             const prevDate = prevMsg
               ? new Date(prevMsg.created_at).toDateString()
               : null;
             const showDate = msgDate !== prevDate;
-
             return (
               <div key={msg.id} data-msgrow="1">
                 {showDate && (
@@ -1448,7 +1824,6 @@ export default function ChatPage() {
           })
         )}
 
-        {/* Typing indicator */}
         {isTyping && (
           <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
             <Avatar name={otherName} size={20} />
@@ -1481,7 +1856,6 @@ export default function ChatPage() {
         )}
 
         <div ref={bottomRef} />
-        <style>{`@keyframes typingBounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}`}</style>
       </div>
 
       {/* ── Reply bar ── */}
@@ -1545,6 +1919,7 @@ export default function ChatPage() {
 
       {/* ── Input area ── */}
       <div
+        ref={inputContainerRef}
         style={{
           padding: "10px 14px",
           borderTop: "1px solid #181818",
@@ -1552,8 +1927,29 @@ export default function ChatPage() {
           display: "flex",
           gap: "8px",
           alignItems: "flex-end",
+          position: "relative",
         }}
       >
+        {/* @Movie Mention Dropdown */}
+        {mentionActive && (
+          <div
+            className="mention-dropdown"
+            style={{
+              position: "absolute",
+              bottom: "calc(100% + 4px)",
+              left: "14px",
+              right: "14px",
+              zIndex: 100,
+            }}
+          >
+            <MovieMentionDropdown
+              query={mentionQuery}
+              onSelect={sendTitleRec}
+              anchorRef={inputRef}
+            />
+          </div>
+        )}
+
         <button
           style={{
             width: 36,
@@ -1573,33 +1969,72 @@ export default function ChatPage() {
           <Paperclip size={15} />
         </button>
 
-        <textarea
-          ref={inputRef}
-          value={text}
-          onInput={onInput}
-          onKeyDown={onKeyDown}
-          placeholder="Message…"
-          rows={1}
-          style={{
-            flex: 1,
-            background: "#141414",
-            border: "1px solid #222",
-            borderRadius: "20px",
-            padding: "9px 16px",
-            color: "#F0EDE8",
-            fontFamily: SANS,
-            fontSize: "14px",
-            resize: "none",
-            outline: "none",
-            maxHeight: "130px",
-            lineHeight: 1.45,
-            transition: "border-color 0.15s",
-          }}
-          onFocus={(e) =>
-            (e.target.style.borderColor = "rgba(200,169,110,0.4)")
-          }
-          onBlur={(e) => (e.target.style.borderColor = "#222")}
-        />
+        <div style={{ flex: 1, position: "relative" }}>
+          {/* @hint badge */}
+          {!mentionActive && text.length === 0 && (
+            <div
+              style={{
+                position: "absolute",
+                right: "10px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                pointerEvents: "none",
+                opacity: 0.4,
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: MONO,
+                  fontSize: "10px",
+                  color: "#504E4A",
+                  background: "#1A1A1A",
+                  border: "1px solid #2A2A2A",
+                  borderRadius: "4px",
+                  padding: "1px 5px",
+                }}
+              >
+                @
+              </span>
+              <span
+                style={{ fontFamily: SANS, fontSize: "10px", color: "#504E4A" }}
+              >
+                film
+              </span>
+            </div>
+          )}
+          <textarea
+            ref={inputRef}
+            value={text}
+            onInput={onInput}
+            onKeyDown={onKeyDown}
+            placeholder="Message… or @ to recommend a film"
+            rows={1}
+            style={{
+              width: "100%",
+              background: "#141414",
+              border: `1px solid ${mentionActive ? "rgba(200,169,110,0.4)" : "#222"}`,
+              borderRadius: "20px",
+              padding: "9px 16px",
+              color: "#F0EDE8",
+              fontFamily: SANS,
+              fontSize: "14px",
+              resize: "none",
+              outline: "none",
+              maxHeight: "130px",
+              lineHeight: 1.45,
+              transition: "border-color 0.15s",
+            }}
+            onFocus={(e) =>
+              (e.target.style.borderColor = "rgba(200,169,110,0.4)")
+            }
+            onBlur={(e) => {
+              if (!mentionActive) e.target.style.borderColor = "#222";
+            }}
+          />
+        </div>
 
         {text.trim() ? (
           <button

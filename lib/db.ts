@@ -186,17 +186,21 @@ export async function addLog(
     watched_at: new Date().toISOString(),
   };
 
+  
+
   // localStorage write
   const logs = getLogs();
   logs.unshift(newEntry);
   lsSet(LS_LOGS, logs);
   emit("taste_logs_changed");
 
+  
   // Supabase write
   const user = await getUser();
   if (user) {
     const mt = entry.media_type ?? (entry.type === "series" ? "tv" : "movie");
     const titleId = await tmdbToUuid(entry.tmdb_id, mt);
+
     if (titleId) {
       await supabase.from("logs").insert({
         user_id: user.id,
@@ -205,14 +209,62 @@ export async function addLog(
         note: entry.note,
         watched_at: newEntry.watched_at,
       });
+
+      // ── Auto-save genres if missing ──────────────────────────────────────
+      // If this title has no genres in title_genres yet, fetch from TMDB and save.
+      // This self-heals the 44k titles that are missing genre data.
+      const { data: existingGenres } = await supabase
+        .from("title_genres")
+        .select("title_id")
+        .eq("title_id", titleId)
+        .limit(1);
+
+     if (!existingGenres?.length) {
+       try {
+         const tmdbKey = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
+         console.log("[genre-save] tmdbKey:", tmdbKey ? "found" : "MISSING");
+         console.log("[genre-save] titleId:", titleId);
+         console.log("[genre-save] tmdb_id:", entry.tmdb_id);
+         console.log("[genre-save] mt:", mt);
+
+         const endpoint =
+           mt === "movie"
+             ? `https://api.themoviedb.org/3/movie/${entry.tmdb_id}`
+             : `https://api.themoviedb.org/3/tv/${entry.tmdb_id}`;
+         const res = await fetch(
+           `${endpoint}?api_key=${tmdbKey}&language=en-US`,
+         );
+         console.log("[genre-save] TMDB response status:", res.status);
+
+         if (res.ok) {
+           const data = await res.json();
+           console.log("[genre-save] genres found:", data.genres);
+           const genres: { id: number }[] = data.genres || [];
+           if (genres.length) {
+             const { error } = await supabase.from("title_genres").upsert(
+               genres.map((g) => ({ title_id: titleId, genre_id: g.id })),
+               { onConflict: "title_id,genre_id", ignoreDuplicates: true },
+             );
+             console.log("[genre-save] upsert error:", error);
+           }
+         }
+       } catch (e) {
+         console.log("[genre-save] caught error:", e);
+       }
+     }
+      // ── End genre auto-save ──────────────────────────────────────────────
     }
 
-    invalidateGenreCache(user.id); // ← add this
+    // Invalidate genre cache so next getCinephileData() re-fetches fresh counts
+    invalidateGenreCache(user.id);
+
     // Also save rating if provided
     if (entry.user_rating) {
       await saveRating(entry.tmdb_id, mt, entry.user_rating);
     }
   }
+
+  
 
   return newEntry;
 }
@@ -449,7 +501,10 @@ export function getStats() {
     total_episodes: series.length,
     top_genres: topGenres,
     top_directors: topDirectors,
-    avg_rating: ratedLogs.length > 0 ? totalRating / ratedLogs.length : 0,
+    avg_rating:
+      ratedLogs.length > 0
+        ? Math.round((totalRating / ratedLogs.length) * 10) / 10
+        : 0,
   };
 }
 
