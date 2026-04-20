@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase"; // may already be imported
+ 
 import {
   Settings,
   Share2,
@@ -13,6 +15,8 @@ import {
   Edit3,
   Check,
   X,
+  UserPlus,
+  UserCheck,
   Calendar,
   TrendingUp,
   Award,
@@ -526,7 +530,10 @@ export default function ProfilePage() {
   const [twins, setTwins] = useState<any[]>([]);
   const [tab, setTab] = useState<
     "overview" | "films" | "tv" | "watchlist" | "stats"
-  >("overview");
+    >("overview");
+  const [followModal, setFollowModal] = useState<
+    "followers" | "following" | null
+  >(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -697,7 +704,11 @@ export default function ProfilePage() {
                 flexWrap: "wrap",
               }}
             >
-              <FollowStats userId={user.id} />
+              <FollowStats
+                userId={user.id}
+                onFollowersClick={() => setFollowModal("followers")}
+                onFollowingClick={() => setFollowModal("following")}
+              />
               <FollowButton targetUserId={user.id} />
             </div>
 
@@ -1633,6 +1644,14 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
+          {followModal && (
+            <UserListModal
+              userId={user.id}
+              type={followModal}
+              title={followModal === "followers" ? "Followers" : "Following"}
+              onClose={() => setFollowModal(null)}
+            />
+          )}
         </div>
       )}
 

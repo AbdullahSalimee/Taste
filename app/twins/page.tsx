@@ -135,12 +135,7 @@ export default function TwinsPage() {
     await loadTwins();
 
     // Award XP for newly found twins — must happen client-side so localStorage is accessible
-    if (data.twins_found > 0) {
-      for (let i = 0; i < data.twins_found; i++) {
-        recordTwin(); // +25 XP each, written to localStorage
-      }
-    }
-
+   
     setRunning(false);
   }
 

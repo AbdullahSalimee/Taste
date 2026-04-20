@@ -72,9 +72,11 @@ function Avatar({ name, size = 30 }: { name: string; size?: number }) {
 }
 
 function ActivityItem({ item }: { item: any }) {
-  const router = useRouter();
   const [imgErr, setImgErr] = useState(false);
   const mt = item.media_type === "tv" ? "tv" : "movie";
+  const profileHref = item.author_username
+    ? `/profile/${item.author_username}`
+    : null;
 
   return (
     <div
@@ -90,7 +92,15 @@ function ActivityItem({ item }: { item: any }) {
       onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#1A1A1A")}
     >
       <div style={{ display: "flex", gap: "12px" }}>
-        <Avatar name={item.author} size={32} />
+        {/* Avatar — clickable */}
+        {profileHref ? (
+          <Link href={profileHref} style={{ flexShrink: 0 }}>
+            <Avatar name={item.author} size={32} />
+          </Link>
+        ) : (
+          <Avatar name={item.author} size={32} />
+        )}
+
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
@@ -101,21 +111,45 @@ function ActivityItem({ item }: { item: any }) {
               flexWrap: "wrap",
             }}
           >
-            <span
-              style={{
-                fontFamily: SANS,
-                fontSize: "13px",
-                color: "#F0EDE8",
-                fontWeight: 500,
-              }}
-            >
-              {item.author}
-            </span>
+            {/* Author name — clickable */}
+            {profileHref ? (
+              <Link
+                href={profileHref}
+                style={{
+                  fontFamily: SANS,
+                  fontSize: "13px",
+                  color: "#F0EDE8",
+                  fontWeight: 500,
+                  textDecoration: "none",
+                }}
+                onMouseEnter={(e) =>
+                  ((e.currentTarget as HTMLElement).style.color = "#C8A96E")
+                }
+                onMouseLeave={(e) =>
+                  ((e.currentTarget as HTMLElement).style.color = "#F0EDE8")
+                }
+              >
+                {item.author}
+              </Link>
+            ) : (
+              <span
+                style={{
+                  fontFamily: SANS,
+                  fontSize: "13px",
+                  color: "#F0EDE8",
+                  fontWeight: 500,
+                }}
+              >
+                {item.author}
+              </span>
+            )}
+
             <span
               style={{ fontFamily: SANS, fontSize: "12px", color: "#504E4A" }}
             >
               {item.type === "review" ? "reviewed" : "rated"}
             </span>
+
             <Link
               href={`/title/${mt}/${item.tmdb_id}`}
               style={{
@@ -132,11 +166,13 @@ function ActivityItem({ item }: { item: any }) {
             >
               {item.title}
             </Link>
+
             <span
               style={{ fontFamily: MONO, fontSize: "10px", color: "#504E4A" }}
             >
               {item.year || ""}
             </span>
+
             <span
               style={{
                 marginLeft: "auto",
@@ -149,6 +185,7 @@ function ActivityItem({ item }: { item: any }) {
               {timeAgo(item.date)}
             </span>
           </div>
+
           {item.rating && (
             <div
               style={{
@@ -162,68 +199,68 @@ function ActivityItem({ item }: { item: any }) {
               <span
                 style={{ fontFamily: MONO, fontSize: "10px", color: "#504E4A" }}
               >
-                {item.rating}/5
+                {item.rating.toFixed(1)}
               </span>
             </div>
           )}
+
           {item.body && (
             <p
-              style={
-                {
-                  fontFamily: SANS,
-                  fontSize: "13px",
-                  color: "#8A8780",
-                  lineHeight: 1.65,
-                  fontStyle: "italic",
-                  display: "-webkit-box",
-                  WebkitLineClamp: 3,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                } as React.CSSProperties
-              }
+              style={{
+                fontFamily: SANS,
+                fontSize: "12px",
+                color: "#8A8780",
+                lineHeight: 1.6,
+                fontStyle: "italic",
+                display: "-webkit-box",
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+              }}
             >
-              "{item.body}"
+              {item.body}
             </p>
           )}
         </div>
+
+        {/* Poster thumbnail */}
         {item.poster_url && (
-          <div
-            onClick={() => router.push(`/title/${mt}/${item.tmdb_id}`)}
-            style={{
-              width: "40px",
-              height: "60px",
-              borderRadius: "3px",
-              overflow: "hidden",
-              background: "#1A1A1A",
-              flexShrink: 0,
-              cursor: "pointer",
-            }}
-          >
-            {!imgErr ? (
-              <img
-                src={item.poster_url}
-                alt={item.title}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                onError={() => setImgErr(true)}
-              />
-            ) : (
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {item.media_type === "tv" ? (
-                  <Tv size={12} color="#2A2A2A" />
-                ) : (
-                  <Film size={12} color="#2A2A2A" />
-                )}
-              </div>
-            )}
-          </div>
+          <Link href={`/title/${mt}/${item.tmdb_id}`} style={{ flexShrink: 0 }}>
+            <div
+              style={{
+                width: "36px",
+                height: "52px",
+                borderRadius: "4px",
+                overflow: "hidden",
+                background: "#1A1A1A",
+              }}
+            >
+              {!imgErr ? (
+                <img
+                  src={item.poster_url}
+                  alt={item.title}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  onError={() => setImgErr(true)}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: "100%",
+                    height: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {item.media_type === "tv" ? (
+                    <Tv size={12} color="#2A2A2A" />
+                  ) : (
+                    <Film size={12} color="#2A2A2A" />
+                  )}
+                </div>
+              )}
+            </div>
+          </Link>
         )}
       </div>
     </div>
@@ -305,7 +342,7 @@ export default function ActivityPage() {
         </p>
       </div>
 
-      {/* ── Stories Bar ── */}
+      {/* Stories Bar */}
       <div style={{ marginBottom: "20px" }}>
         <StoriesBar />
       </div>
@@ -360,8 +397,14 @@ export default function ActivityPage() {
         </div>
       ) : (
         <>
-          {items.map((item) => (
-            <ActivityItem key={item.id} item={item} />
+          {items.map((item, i) => (
+            <div
+              key={item.id}
+              className="feed-item"
+              style={{ "--feed-delay": `${i * 25}ms` } as React.CSSProperties}
+            >
+              <ActivityItem item={item} />
+            </div>
           ))}
           <div
             ref={loaderRef}

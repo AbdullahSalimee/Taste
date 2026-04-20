@@ -100,29 +100,10 @@ export function FollowButton({
         fontFamily: SANS,
         fontSize: isSmall ? "11px" : "13px",
         fontWeight: 600,
-        transition: "all 0.15s ease",
-        opacity: loading ? 0.5 : 1,
-      }}
-      onMouseEnter={(e) => {
-        if (!loading && !toggling && isFollowing) {
-          e.currentTarget.style.background = "rgba(138,42,42,0.1)";
-          e.currentTarget.style.borderColor = "rgba(138,42,42,0.3)";
-          e.currentTarget.style.color = "#8A4A4A";
-          e.currentTarget.querySelector(".follow-label")!.textContent =
-            "Unfollow";
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!loading && !toggling && isFollowing) {
-          e.currentTarget.style.background = "rgba(200,169,110,0.1)";
-          e.currentTarget.style.borderColor = "rgba(200,169,110,0.3)";
-          e.currentTarget.style.color = "#C8A96E";
-          e.currentTarget.querySelector(".follow-label")!.textContent =
-            "Following";
-        }
+        transition: "all 0.2s ease",
       }}
     >
-      {toggling ? (
+      {loading || toggling ? (
         <Loader2
           size={isSmall ? 11 : 13}
           style={{ animation: "spin 1s linear infinite" }}
@@ -140,8 +121,17 @@ export function FollowButton({
   );
 }
 
-// ── Follow stats display ───────────────────────────────────────────────────────
-export function FollowStats({ userId }: { userId: string }) {
+// ── Follow Stats Display ───────────────────────────────────────────────────────
+// onFollowersClick / onFollowingClick — if provided, counts become buttons
+export function FollowStats({
+  userId,
+  onFollowersClick,
+  onFollowingClick,
+}: {
+  userId: string;
+  onFollowersClick?: () => void;
+  onFollowingClick?: () => void;
+}) {
   const [stats, setStats] = useState({ followers: 0, following: 0 });
 
   useEffect(() => {
@@ -155,32 +145,66 @@ export function FollowStats({ userId }: { userId: string }) {
   return (
     <div style={{ display: "flex", gap: "20px" }}>
       {[
-        { val: stats.followers, label: "Followers" },
-        { val: stats.following, label: "Following" },
-      ].map(({ val, label }) => (
-        <div key={label} style={{ textAlign: "center" }}>
-          <p
-            style={{
-              fontFamily: "JetBrains Mono, monospace",
-              fontSize: "18px",
-              color: "#C8A96E",
-              fontWeight: 500,
-            }}
-          >
-            {val}
-          </p>
-          <p
-            style={{
-              fontFamily: SANS,
-              fontSize: "10px",
-              color: "#504E4A",
-              marginTop: "2px",
-            }}
-          >
-            {label}
-          </p>
-        </div>
-      ))}
+        { val: stats.followers, label: "Followers", onClick: onFollowersClick },
+        { val: stats.following, label: "Following", onClick: onFollowingClick },
+      ].map(({ val, label, onClick }) => {
+        const inner = (
+          <>
+            <p
+              style={{
+                fontFamily: MONO,
+                fontSize: "18px",
+                color: "#C8A96E",
+                fontWeight: 500,
+              }}
+            >
+              {val}
+            </p>
+            <p
+              style={{
+                fontFamily: SANS,
+                fontSize: "10px",
+                color: "#504E4A",
+                marginTop: "2px",
+              }}
+            >
+              {label}
+            </p>
+          </>
+        );
+
+        if (onClick) {
+          return (
+            <button
+              key={label}
+              onClick={onClick}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                textAlign: "center",
+                padding: 0,
+              }}
+              onMouseEnter={(e) => {
+                const p = e.currentTarget.querySelector("p");
+                if (p) (p as HTMLElement).style.textDecoration = "underline";
+              }}
+              onMouseLeave={(e) => {
+                const p = e.currentTarget.querySelector("p");
+                if (p) (p as HTMLElement).style.textDecoration = "none";
+              }}
+            >
+              {inner}
+            </button>
+          );
+        }
+
+        return (
+          <div key={label} style={{ textAlign: "center" }}>
+            {inner}
+          </div>
+        );
+      })}
     </div>
   );
 }

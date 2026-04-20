@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     .select(
       `
       id, body, rating, likes, created_at,
-      profiles ( username, display_name ),
+      profiles ( id, username, display_name ),
       titles ( tmdb_id, media_type, title, poster_path, year )
     `,
     )
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     .select(
       `
       id, rating, rated_at,
-      profiles ( username, display_name ),
+      profiles ( id, username, display_name ),
       titles ( tmdb_id, media_type, title, poster_path, year )
     `,
     )
@@ -55,7 +55,8 @@ export async function GET(request: NextRequest) {
     activity.push({
       id: `review_${r.id}`,
       type: "review",
-      author: profile?.username || profile?.display_name || "someone",
+      author: profile?.display_name || profile?.username || "someone",
+      author_username: profile?.username || null,
       action: "reviewed",
       body: r.body,
       rating: r.rating,
@@ -77,7 +78,8 @@ export async function GET(request: NextRequest) {
     activity.push({
       id: `rating_${r.id}`,
       type: "rating",
-      author: profile?.username || profile?.display_name || "someone",
+      author: profile?.display_name || profile?.username || "someone",
+      author_username: profile?.username || null,
       action: "rated",
       rating: r.rating,
       date: r.rated_at,
