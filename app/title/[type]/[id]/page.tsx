@@ -3,6 +3,8 @@ import { CommunityReviews } from "@/components/features/CommunityReviews";
 import { useAuthGate } from "@/components/features/AuthGate";
 import { useAuth } from "@/lib/auth-context";
 import { useState, useEffect, useRef } from "react";
+import { TitlePageExtras } from "@/components/features/TitlePageExtras";
+
 import { useParams, useRouter } from "next/navigation";
 import { SendToFriend } from "@/components/features/SendToFriend";
 
@@ -1943,7 +1945,9 @@ export default function TitleDetailPage() {
 
               {/* Cast */}
               {data.cast?.length > 0 && (
-                <div style={{ marginBottom: "32px" }}>
+                <div
+                   className="w-[700px]"
+                  style={{ marginBottom: "32px" }}>
                   <p
                     style={{
                       fontFamily: SANS,
@@ -1972,6 +1976,14 @@ export default function TitleDetailPage() {
                 </div>
               )}
             </div>
+          )}
+
+          {activeTab === "info" && (
+            <TitlePageExtras
+              tmdbId={tmdbId}
+              mediaType={mediaType as "movie" | "tv"}
+              titleName={data.title}
+            />
           )}
 
           {/* Tab: Episode Heatmap */}
