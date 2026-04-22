@@ -12,6 +12,7 @@ import {
   Star,
   BookmarkPlus,
   BookmarkCheck,
+  BookOpen,
   Eye,
   EyeOff,
   Check,
@@ -996,6 +997,8 @@ export default function TitleDetailPage() {
   const { requireAuth, gate } = useAuthGate();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [listsMenuOpen, setListsMenuOpen] = useState(false);
+  const [userLists, setUserLists] = useState<any[]>([]);
   const [similar, setSimilar] = useState<any[]>([]);
   const [logOpen, setLogOpen] = useState(false);
   const [logged, setLogged] = useState(false);
@@ -1029,6 +1032,21 @@ export default function TitleDetailPage() {
       })
       .catch(() => setLoading(false));
   }, [tmdbId, mediaType]);
+
+
+  async function openAddToList() {
+    if (!requireAuth("log")) return;
+    const {
+      data: { session },
+    } = await (await import("@/lib/supabase")).supabase.auth.getSession();
+    if (!session) return;
+    const res = await fetch(`/api/lists?user_id=${user!.id}`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    const data = await res.json();
+    setUserLists(data.lists || []);
+    setListsMenuOpen(true);
+  }
 
   async function loadSimilar(titleData: any) {
     try {
@@ -1497,7 +1515,6 @@ export default function TitleDetailPage() {
               {logged ? <Check size={14} /> : <Eye size={14} />}
               {logged ? "Logged" : "Log this"}
             </button>
-
             <button
               onClick={() => {
                 if (requireAuth("watchlist")) handleToggleWatchlist();
@@ -1523,7 +1540,141 @@ export default function TitleDetailPage() {
               )}
               {onWatchlist ? "Saved" : "Watchlist"}
             </button>
+            <button
+              onClick={openAddToList}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "7px",
+                padding: "10px 16px",
+                borderRadius: "8px",
+                background: "transparent",
+                border: "1px solid #2A2A2A",
+                color: "#8A8780",
+                fontFamily: SANS,
+                fontSize: "13px",
+                cursor: "pointer",
+              }}
+            >
+              <BookOpen size={14} /> Add to List
+            </button>
 
+            {listsMenuOpen && (
+              <div
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  zIndex: 200,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <div
+                  onClick={() => setListsMenuOpen(false)}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: "rgba(0,0,0,0.6)",
+                  }}
+                />
+                <div
+                  style={{
+                    position: "relative",
+                    zIndex: 1,
+                    background: "#141414",
+                    border: "1px solid #2A2A2A",
+                    borderRadius: "12px",
+                    padding: "16px",
+                    minWidth: "240px",
+                    boxShadow: "0 24px 60px rgba(0,0,0,0.8)",
+                  }}
+                >
+                  <p
+                    style={{
+                      fontFamily: SANS,
+                      fontSize: "11px",
+                      color: "#504E4A",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.12em",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    Add to list
+                  </p>
+                  {userLists.length === 0 ? (
+                    <p
+                      style={{
+                        fontFamily: SANS,
+                        fontSize: "13px",
+                        color: "#504E4A",
+                      }}
+                    >
+                      No lists yet.{" "}
+                      <Link href="/lists" style={{ color: "#C8A96E" }}>
+                        Create one
+                      </Link>
+                    </p>
+                  ) : (
+                    userLists.map((list) => (
+                      <button
+                        key={list.id}
+                        onClick={async () => {
+                          const { supabase } = await import("@/lib/supabase");
+                          const {
+                            data: { session },
+                          } = await supabase.auth.getSession();
+                          if (!session) return;
+                          await fetch(`/api/lists/${list.id}/entries`, {
+                            method: "POST",
+                            headers: {
+                              "Content-Type": "application/json",
+                              Authorization: `Bearer ${session.access_token}`,
+                            },
+                            body: JSON.stringify({
+                              tmdb_id: tmdbId,
+                              media_type: mediaType,
+                            }),
+                          });
+                          setListsMenuOpen(false);
+                        }}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          padding: "9px 10px",
+                          borderRadius: "6px",
+                          background: "none",
+                          border: "none",
+                          textAlign: "left",
+                          cursor: "pointer",
+                          color: "#F0EDE8",
+                          fontFamily: SANS,
+                          fontSize: "13px",
+                        }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background = "#1A1A1A")
+                        }
+                        onMouseLeave={(e) =>
+                          (e.currentTarget.style.background = "none")
+                        }
+                      >
+                        {list.title}
+                        <span
+                          style={{
+                            fontFamily: MONO,
+                            fontSize: "10px",
+                            color: "#504E4A",
+                            marginLeft: "8px",
+                          }}
+                        >
+                          {list.entry_count}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
             <button
               onClick={() => setSendOpen(true)}
               style={{
@@ -1550,7 +1701,6 @@ export default function TitleDetailPage() {
             >
               <Send size={14} /> Send
             </button>
-
             {sendOpen && data && (
               <SendToFriend
                 mode="title"
@@ -1566,7 +1716,6 @@ export default function TitleDetailPage() {
                 onClose={() => setSendOpen(false)}
               />
             )}
-
             {/* User quick-rate — only for signed in users */}
             {user && !logged && (
               <div
@@ -1607,7 +1756,6 @@ export default function TitleDetailPage() {
                 />
               </div>
             )}
-
             {/* Sign in prompt for guests instead of rate */}
             {!user && (
               <button

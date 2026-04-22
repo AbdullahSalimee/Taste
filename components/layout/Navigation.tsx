@@ -56,6 +56,7 @@ const ALL_NAV = [
   { href: "/messages", icon: MessageCircle, label: "Messages" },
   { href: "/notifications", icon: Bell, label: "Notifications" },
   { href: "/profile", icon: User, label: "Profile" },
+  { href: "/lists", icon: BookOpen, label: "Lists" },
 ];
 
 const BOTTOM_NAV = [
