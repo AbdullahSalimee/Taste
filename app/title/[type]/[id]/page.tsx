@@ -1946,7 +1946,7 @@ export default function TitleDetailPage() {
               {/* Cast */}
               {data.cast?.length > 0 && (
                 <div
-                   className="w-[700px]"
+                   className=" w-44 md:w-[700px]"
                   style={{ marginBottom: "32px" }}>
                   <p
                     style={{
