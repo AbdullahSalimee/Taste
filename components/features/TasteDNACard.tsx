@@ -295,7 +295,7 @@ useEffect(() => {
                 marginTop: "12px",
               }}
             >
-              {stats.top_genres.slice(0, 4).map((g) => (
+              {stats.top_genres.slice(0,4).map((g) => (
                 <span
                   key={g.name}
                   style={{

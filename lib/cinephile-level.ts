@@ -67,10 +67,10 @@ export const RANK_THRESHOLDS: {
   min: number;
   max: number | null;
 }[] = [
-  { rank: "Casual", min: 0, max: 999 },
-  { rank: "Enthusiast", min: 1000, max: 1999 },
-  { rank: "Devotee", min: 2000, max: 2999 },
-  { rank: "Auteur", min: 3000, max: null },
+  { rank: "Casual", min: 0, max: 1999 },
+  { rank: "Enthusiast", min: 2000, max: 6999 },
+  { rank: "Devotee", min: 7000, max: 14999 },
+  { rank: "Auteur", min: 15000, max: null },
 ];
 
 export const RANK_COLORS: Record<

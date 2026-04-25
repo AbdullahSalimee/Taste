@@ -5,6 +5,9 @@ import { StreakCard } from "@/components/features/StreakCard";
 import Link from "next/link";
 // app/dashboard/page.tsx — right sidebar, after StreakCard
 import { WeeklyLeaderboard } from "@/components/features/WeeklyLeaderboard";
+import { LetterboxdImportBanner } from "@/components/features/LetterboxdImportBanner";
+import { LetterboxdImportButton } from "@/components/features/LetterboxdImportBanner";
+
 import { CommunityChallenges } from "@/components/features/CommunityChallenge";
 import {
   Film,
@@ -1132,6 +1135,9 @@ export default function DashboardPage() {
             label="Avg Rating"
             sub="your critical score"
           />
+
+          <LetterboxdImportBanner />
+          <LetterboxdImportButton/>
         </div>
       )}
 
@@ -1351,7 +1357,7 @@ export default function DashboardPage() {
           <CinephileLevel compact />
           <WeeklyLeaderboard compact />
           <CommunityChallenges compact />
-          
+
           {(stats.total_films > 0 || stats.total_series > 0) && (
             <div>
               <GenreBars genres={stats.top_genres} />
