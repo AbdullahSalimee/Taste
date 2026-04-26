@@ -29,7 +29,7 @@ function genId() {
 
 export async function hydrateFromSupabase(): Promise<void> {
   if (typeof window === "undefined" || _hydrating) return;
-  if (lsGet<any[]>(LS_LOGS, []).length > 0) return;
+  
 
   const {
     data: { session },
@@ -41,16 +41,27 @@ export async function hydrateFromSupabase(): Promise<void> {
     const userId = session.user.id;
 
     // 1. Fetch logs with title info
+    // 1. Fetch logs with title info
     const { data: logs } = await supabase
       .from("logs")
       .select(
         `id, status, watched_at, note, rewatch,
-        titles ( id, tmdb_id, media_type, title, poster_path, year )`,
+    titles ( id, tmdb_id, media_type, title, poster_path, year )`,
       )
       .eq("user_id", userId)
       .order("watched_at", { ascending: false })
       .limit(500);
 
+    // 1b. Also fetch ratings so avg_rating is accurate after re-hydration
+    const { data: ratingsRows } = await supabase
+      .from("user_ratings")
+      .select("title_id, rating")
+      .eq("user_id", userId);
+
+    const ratingByTitleId: Record<string, number> = {};
+    for (const r of ratingsRows || []) {
+      ratingByTitleId[r.title_id] = r.rating;
+    }
     if (!logs?.length) return;
 
     const titleIds = [
@@ -104,7 +115,7 @@ export async function hydrateFromSupabase(): Promise<void> {
           poster_url: t.poster_path ? `${TMDB_IMG}${t.poster_path}` : null,
           year: t.year ?? 0,
           tmdb_rating: 0,
-          user_rating: null,
+          user_rating: ratingByTitleId[t.id] ?? null,
           note: log.note ?? null,
           status: log.status,
           watched_at: log.watched_at,

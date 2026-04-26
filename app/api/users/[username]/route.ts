@@ -66,7 +66,7 @@ export async function GET(
       // Summary counts
       db
         .from("logs")
-        .select("id, status, media_type, user_rating, watched_at", {
+        .select(`id, status, watched_at, titles(media_type)`, {
           count: "exact",
         })
         .eq("user_id", userId)
@@ -75,8 +75,8 @@ export async function GET(
       db
         .from("logs")
         .select(
-          `id, status, watched_at, note, user_rating, media_type,
-           titles(tmdb_id, media_type, title, poster_path, year)`,
+          `id, status, watched_at, note,
+     titles(tmdb_id, media_type, title, poster_path, year)`,
         )
         .eq("user_id", userId)
         .in("status", ["watched", "watching"])
@@ -86,15 +86,12 @@ export async function GET(
 
   const allLogs = logsRes.data || [];
   const films = allLogs.filter(
-    (l) => l.media_type === "movie" || l.media_type === "film",
+    (l: any) => (l.titles as any)?.media_type === "movie",
   );
-  const series = allLogs.filter((l) => l.media_type === "tv");
-  const ratedLogs = allLogs.filter((l) => l.user_rating);
-  const avgRating =
-    ratedLogs.length > 0
-      ? ratedLogs.reduce((s: number, l: any) => s + (l.user_rating || 0), 0) /
-        ratedLogs.length
-      : 0;
+  const series = allLogs.filter(
+    (l: any) => (l.titles as any)?.media_type === "tv",
+  );
+  const avgRating = 0; // user_rating lives in user_ratings table, not logs
 
   // Format recent logs
   const recentActivity = (recentLogsRes.data || []).map((log: any) => {
@@ -104,8 +101,8 @@ export async function GET(
       status: log.status,
       watched_at: log.watched_at,
       note: log.note,
-      user_rating: log.user_rating,
-      media_type: log.media_type,
+      user_rating: null,
+      media_type: title?.media_type ?? "movie",
       title: title?.title,
       year: title?.year,
       tmdb_id: title?.tmdb_id,
