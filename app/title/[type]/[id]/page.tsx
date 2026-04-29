@@ -4,6 +4,7 @@ import { useAuthGate } from "@/components/features/AuthGate";
 import { useAuth } from "@/lib/auth-context";
 import { useState, useEffect, useRef } from "react";
 import { TitlePageExtras } from "@/components/features/TitlePageExtras";
+import { DiarySection } from "@/components/features/DiarySection";
 
 import { useParams, useRouter } from "next/navigation";
 import { SendToFriend } from "@/components/features/SendToFriend";
@@ -1900,7 +1901,13 @@ export default function TitleDetailPage() {
                       fontWeight: 500,
                     }}
                   >
+
+                    <Link
+                    href={`/person/${data.cast.id}`}
+                    >
                     {data.director || (data.created_by || []).join(", ")}
+                 
+                 </Link>
                   </p>
                 </div>
               )}
@@ -1970,11 +1977,17 @@ export default function TitleDetailPage() {
                     }}
                   >
                     {data.cast.map((member: any) => (
-                      <CastCard key={member.id} member={member} />
+
+
+                      <Link href={`/person/${member.id}`}>
+  <CastCard key={member.id} member={member} />
+</Link>
                     ))}
                   </div>
                 </div>
               )}
+
+              <DiarySection tmdbId={tmdbId} />
             </div>
           )}
 

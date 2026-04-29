@@ -54,9 +54,13 @@ const ALL_NAV = [
   { href: "/activity", icon: TrendingUp, label: "Community" },
   { href: "/twins", icon: Users, label: "Twins" },
   { href: "/messages", icon: MessageCircle, label: "Messages" },
+  { href: "/mood", icon: Bell, label: "For You" },
+   { href: "/reviews ", icon: Bell, label: "Reviews" },
+
   { href: "/notifications", icon: Bell, label: "Notifications" },
-  { href: "/profile", icon: User, label: "Profile" },
+  
   { href: "/lists", icon: BookOpen, label: "Lists" },
+  { href: "/profile", icon: User, label: "Profile" },
 ];
 
 const BOTTOM_NAV = [
