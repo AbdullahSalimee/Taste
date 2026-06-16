@@ -1,142 +1,135 @@
-# Taste — Pre-Development Platform
+# Taste
 
-> *Track every film and series. Discover your cinematic DNA. Find people who watch like you.*
-
-Built with **Next.js 15 (App Router)**, **TypeScript**, **Tailwind CSS v4**, and plain CSS for animations.
+### *Discover Your Cinematic DNA.*
 
 ---
 
-## Stack
+## ✨ The Premise
 
-| Layer | Tech |
-|---|---|
-| Framework | Next.js 15 App Router |
-| Language | TypeScript |
-| Styling | Tailwind CSS v4 + plain CSS animations |
-| AI | Anthropic Claude API (ready to wire) |
-| Data | Mock data in `lib/mock-data.ts` (swap for Supabase) |
-| Fonts | Playfair Display · Inter · JetBrains Mono |
+In a world overflowing with content, **Taste** isn't another watchlist—it's your identity. It's a pre-development platform that transforms how you track, understand, and share your film and series journey. Because what you watch isn't just entertainment; it's a reflection of who you are.
+
+**Taste** is your digital soul, made of scenes.
 
 ---
 
-## Quick Start
+## 🎬 The Experience
+
+| Your Journey | What You'll Find |
+| :--- | :--- |
+| **Landing** | A stunning marketing showcase that whispers the promise of your cinematic self. |
+| **Dashboard** | Your social feed, bubbling with activity, and your "Continue Watching" lifeline. |
+| **Profile** | Your hall of fame. Your **Taste DNA Card**, your viewing stats, and an Episode Heatmap that paints the story of your year in TV. |
+| **Discover** | Find your "Taste Twins." Dive deep into a director's filmography or explore a decade of cinema. |
+| **Calendar** | Never miss a premiere again. Your upcoming episodes and films, all in one place. |
+
+---
+
+## 🧬 The Signature
+
+At the heart of **Taste** lies the **Taste DNA Card** —a living, breathing identity. It's not just a profile picture. It's a generated archetype, a reflection of your unique viewing habits, powered by the Anthropic Claude API and your personal data. It’s the centerpiece of a beautifully crafted profile page that feels less like a dashboard and more like a museum dedicated to you.
+
+### A Glimpse at the Architecture
+
+This isn't just a design; it's a carefully constructed experience. Here's a peek under the hood.
+
+```text
+taste/
+├── app/                    # Next.js 15 App Router at its core
+│   ├── page.tsx            # The cinematic landing page
+│   ├── layout.tsx          # The foundation (fonts, grain overlay)
+│   ├── globals.css         # Where animations breathe and design tokens live
+│   ├── dashboard/          # Your feed
+│   ├── profile/            # Your legacy
+│   ├── discover/           # Your exploration
+│   └── calendar/           # Your future
+├── components/
+│   ├── features/           # The soul of Taste
+│   │   ├── TasteDNACard.tsx # The identity that defines you
+│   │   ├── EpisodeHeatmap.tsx # The grid of your dedication
+│   │   └── QuickLog.tsx    # A 2-tap portal to logging
+│   └── layout/
+│       └── Navigation.tsx  # Seamless navigation, from desktop sidebar to mobile bottom bar
+└── lib/
+    └── mock-data.ts        # The seed of your future database
+```
+
+---
+
+## 🎨 The Design Language
+
+### A Palette of Prestige
+
+- **Backgrounds:** `#0D0D0D` to `#1A1A1A`—a foundation of deep, immersive darkness.
+- **Text:** `#F0EDE8` (warm white) and its subtle, sophisticated descendants.
+- **The Gold:** `#C8A96E`—the cinema screen's warm glow, our guiding accent.
+
+### The Typography of Cinema
+
+- **Playfair Display:** For chapter titles, archetype labels, and hero headlines—the voice of drama and elegance.
+- **Inter:** For the UI, the body, the labels—the voice of clarity.
+- **JetBrains Mono:** For ratings, stats, and episode codes—the voice of precision.
+
+### The Art of the Subtle
+
+- **`taste-dna-card`**: A scale and blur reveal on mount, as if your identity is coalescing.
+- **`archetype-shimmer`**: A gold sweep across your cinematic archetype text—a true signature.
+- **`decade-bar`**: Bars that scale from the left on genre and decade selections.
+- **`heatmap-cell`**: A staggered scale-in on episode cells, telling a visual story.
+- **`chapter-card`**: Slide-in from the left, like turning a page.
+- **`feed-item`**: Fade-up on load, as if emerging from the content stream.
+- **`log-sheet`**: Slides up from the bottom, a gentle sheet of paper.
+- **`poster-reveal`**: Desaturate to color on reveal—a moment of discovery.
+- **`skeleton`**: A shimmering loading state, promising richness to come.
+
+---
+
+## 🛠️ The Craftsmanship
+
+Built with a modern stack for a modern experience:
+
+- **Next.js 15 (App Router):** The framework for the cinematic web.
+- **TypeScript:** The language of reliability.
+- **Tailwind CSS v4 + Plain CSS Animations:** The perfect union of utility and soul.
+
+---
+
+## 🚀 The Road Ahead (v1.1)
+
+The pre-development platform is just the beginning. The next scenes are ready to be shot:
+
+1.  **Wire Supabase:** Transition from `mock-data.ts` to a living, breathing database.
+2.  **TMDB API:** Swap mock posters for the vast, real world of live movie data.
+3.  **Claude API:** Unlock the true power of the `Taste DNA Card` with real-time archetype generation.
+4.  **Auth:** Secure your identity with Supabase Auth (Email + Google OAuth).
+5.  **Trakt import:** Bring your history with you.
+6.  **JustWatch:** See where to watch, right from the card.
+7.  **PWA:** Make Taste a permanent part of your home screen.
+
+---
+
+## 🎯 The Quick Start
+
+Ready to see what your cinematic DNA looks like?
 
 ```bash
-# Install
+# Clone the repository
+# Install the magic
 npm install
 
-# Dev server
+# Ignite the dev server
 npm run dev
 # → http://localhost:3000
 
-# Build
+# Build for the world
 npm run build
 ```
 
 ---
 
-## Routes
-
-| Route | Description |
-|---|---|
-| `/` | Landing page — marketing, pricing, DNA showcase |
-| `/dashboard` | Home feed — social activity, continue watching |
-| `/profile` | User profile — DNA card, chapters, stats, heatmap |
-| `/discover` | Discovery — twins, director deep dive, decade explorer |
-| `/calendar` | Release calendar — upcoming episodes & films |
+*Taste is born from the **Taste Pre-Development Document v1.0**. It's a platform waiting for your data, your identity, your story.*
 
 ---
 
-## File Structure
+**Your taste is your identity.**
 
-```
-taste/
-├── app/
-│   ├── page.tsx              # Landing page
-│   ├── layout.tsx            # Root layout (fonts, grain overlay)
-│   ├── globals.css           # All animations, design tokens
-│   ├── dashboard/            # Feed + currently watching
-│   ├── profile/              # Full profile page
-│   ├── discover/             # Discovery engine
-│   └── calendar/             # Release calendar
-├── components/
-│   ├── features/
-│   │   ├── TasteDNACard.tsx  # Signature identity card
-│   │   ├── EpisodeHeatmap.tsx # TV quality grid
-│   │   └── QuickLog.tsx      # 2-tap log modal
-│   ├── layout/
-│   │   └── Navigation.tsx    # Sidebar (desktop) + bottom nav (mobile)
-│   └── ui/
-│       ├── FilmCard.tsx       # Poster card (sm/md/lg)
-│       └── StarRating.tsx     # Interactive half-star rating
-├── lib/
-│   └── mock-data.ts          # All mock films, series, feed, chapters
-├── tailwind.config.ts        # Design system tokens
-└── next.config.ts
-```
-
----
-
-## Design System
-
-### Colours
-```
-Base background:   #0D0D0D
-Surface (cards):   #141414
-Surface elevated:  #1A1A1A
-Border:            #2A2A2A
-
-Text primary:      #F0EDE8  (warm white)
-Text secondary:    #8A8780
-Text tertiary:     #504E4A
-
-Accent gold:       #C8A96E  (cinema screen warm gold)
-Success:           #4A9E6B
-Warning:           #C87C2A
-```
-
-### Fonts
-- **Playfair Display** — chapter titles, archetype labels, hero headlines
-- **Inter** — all UI text, labels, body
-- **JetBrains Mono** — ratings, stats numbers, episode codes
-
-### Animation classes (plain CSS)
-| Class | Effect |
-|---|---|
-| `.taste-dna-card` | Scale+blur reveal on mount |
-| `.archetype-shimmer` | Gold sweep on archetype text |
-| `.decade-bar` | Scale-from-left on genre/decade bars |
-| `.heatmap-cell` | Staggered scale-in on episode cells |
-| `.chapter-card` | Slide-in from left |
-| `.feed-item` | Fade up on load |
-| `.log-sheet` | Slide up from bottom |
-| `.poster-reveal` | Desaturate → colour on reveal |
-| `.skeleton` | Shimmer loading state |
-
----
-
-## Next Steps (v1.1)
-
-1. **Wire Supabase** — swap `lib/mock-data.ts` for real DB calls
-2. **TMDB API** — replace mock posters with live search
-3. **Claude API** — enable archetype generation in `/api/taste-dna`
-4. **Auth** — Supabase Auth (email + Google OAuth)
-5. **Trakt import** — OAuth flow at `/import/trakt`
-6. **JustWatch** — streaming availability badges
-7. **PWA** — manifest + service worker for add-to-homescreen
-
----
-
-## Environment Variables (when wiring real data)
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-ANTHROPIC_API_KEY=
-TMDB_API_KEY=
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
-
----
-
-*Built from the Taste Pre-Development Document v1.0*
+**Taste** is the place to discover it.
